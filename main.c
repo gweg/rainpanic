@@ -1,13 +1,28 @@
-//  RAIN PANIC
+//  RAIN PANIC   alpha version
 //  GOYO 2019 (C)
 //
-//  To draw chars to screen I use poke instead of printf or advancedprint because it's faster
 //
 // reste à implémenter:
+// -------------------
 //
-// coeur qui tombe : vie + 1
+// les différents niveaux -> toutes les vagues de pluie . actuellement que la 1ere vague
 //
+// l'eau qui monte dans la maison lorsque les gouttes tombent au sol
 // 
+// gestion de l'actication du son et de la musique
+// 
+// gestion du volume ?
+//
+// BUGS :
+// ------
+//  
+//  probleme de couleur du toit ( qui s'effondre à chaque vague )
+//
+//
+//  autres idées
+//  ------------
+// coeur qui tombe : vie + 1  ?
+//
 //
 // siphon ?: vide eau  en forme de robinet ?
 //
@@ -59,6 +74,8 @@
   119 x=120 y=121 z=122 {=123 |=124 }=12
   5 ~=126 =127
   */
+  
+  
 #include <lib.h>
 
 #define RAINDROPMAX 24       // max drop in the screen
@@ -95,7 +112,7 @@ char          active_sound;
 char          active_music;
 char          sound_volume;
 unsigned char *ptr;              // for sound effect
-char          walking;           //       manage walking
+char          walking;           // manage walking
 char 		  walking_alt;       // alternate legs chars to walking
 unsigned char jump_time=0;       // gestion du saut du héro 
 
@@ -154,7 +171,7 @@ char credits_text[]="             RAIN PANIC                "
 					"           INSTRUCTIONS :  DURING A STRONG THUNDERSTORM HELP MR ALDO TO CATCH ALL THE DROPS OF WATER FALLING FROM HIS HOUSE CEILING "
 					"    USE LEFT AND RIGHT ARROWS TO MOVE ALDO"
 					"    USE SPACE TO JUMP        ESC TO EXIT   "
-					"                                  AND WATCH OUT FOR THE CAT..............  pq                      "
+					"                                                    "
 					"  CODING BY GOYO, IN C LANGUAGE AND FEW ASSAMBLY CODE"
 					"  THANKS TO THE HELP OF MANY MEMBERS OF COE FORUM : DBUG  LAURENTD75"
 					"  LADYWASKY  DRPSY  KENNETH  ISS AND OTHERS ORICIANS ..           "
@@ -166,7 +183,12 @@ char music_intro[] = {3,10,2,4,1,4,4,3,2,4,5,3,4,7,1,4,5,2,4,3,4,3,12,2,3,8,4,3,
 4,1,3,3,12,1,3,10,2,3,9,2,3,7,2,3,9,2,3,10,4,3,10,2,3,10,6,0,0};
 
 
-// raindrop array [XPOS(drop), DELAY(between 2 drop),,,,]
+
+//
+//   WAVES OF RAINDROP DATA 
+//
+
+// RAIN[] -> raindrop array [XPOS(drop), DELAY(between 2 drop),,,,]
 // rain drop must be bewteen 6 and 32 x position
 // 255 = next wave
 // 250 = cat appear on the left (cardir)
@@ -177,11 +199,13 @@ char music_intro[] = {3,10,2,4,1,4,4,3,2,4,5,3,4,7,1,4,5,2,4,3,4,3,12,2,3,8,4,3,
 
 // 0x08 or 0x09 must be in hexa don't know why. Its look lika a bug ?!
 unsigned char rain[] = {   //----------------------------------------------|new wave|
-  07,40 ,32,40 ,19,40,  7,40  ,32,40 ,7,40,  16,0,  18,0, 20,70,
+ 
+ 07,40 ,32,40 ,19,40,  7,40  ,32,40 ,7,40,  16,0,  18,0, 20,70,
   07,0  ,9,0   ,11,60  ,251,0 ,28,0,  30,0,  32,60,
   13,0  ,15,0  ,17,0   ,19,0  ,21,0,  23,0,  25,100,
   07,30 ,9,0  ,11,0   ,28,0  ,30,0,
-  255,00,  // end of wave 1
+  255,00,  // end of wave 1  58 bytes
+ 
   13,35 ,30,35, 208,0 ,07,35 ,251,0,32,35 ,18,35, 215,0, 250,0,07,35 ,32,35 ,07,35 ,224,0 ,32,35 ,251,0,
   07,35, 32,35, 215,0,07,35, 31,35, 17,35, 14,35, 251,0, 25,35, 207,0,07,35, 32,35, 07,35, 32,35, 251,0,   //  wave 2
   20,35, 220,0,32,35, 07,35, 215,0, 31,35, 07,35, 30,35, 250,0,0x08,35, 29,35, 0x09,35, 28,35, 10,35, 251,0, // wave 3
@@ -190,6 +214,7 @@ unsigned char rain[] = {   //----------------------------------------------|new 
   21,0x0,22,0x0,23,0x0,24,0x0,25,0x0,26,0x0,27,0x0,28,0x0,29,0x0,30,0x0,31,0x0,32,0x0,33,0x0,34,0x0,
   
 };
+
 
 void play_music_intro()
 {
@@ -206,7 +231,7 @@ void play_music_intro()
 // redefined characters for graphics and sprites game
 unsigned char redefchar[]={
 
-// player les bras en bas 
+// futur possibilité : player les bras en bas 
 // 00,00,00,00,00,00,00,30, // 86 à haut de la tête
 //00,00,00,00,00,00,00,01, // 87 à gauche de la tête
 //00,00,00,00,00,00,00,32, // 88 à droite de la tête
@@ -231,7 +256,7 @@ unsigned char redefchar[]={
 63,63,63,51,30,45,63,63, // 106
 0x08,0x08,28,28,62,62,46,28,  // 107   goutte à rattraper 1/2 
 00,00,00,00,00,00,00,00, // 108  goutte à rattraper 2/2
-00,0x08,28,28,62,62,46,28, // 109  goutte de l'extérieur de la maison (pour animation)
+00,0x08,28,28,62,62,46,28, // 109  goutte de l'extérieur de la maison (pour animation) et page d'intro
 00,00,00,00,00,00,00,00, // 110
 30,63,45,63,63,45,51,30, // 111 head of life number
 04,28,31,15,03,03,02,06, // 112
@@ -251,13 +276,9 @@ unsigned char redefchar[]={
 // 126, 127 allready used in them native graphics
 }; 
 
-unsigned int rnd(unsigned int max)
-{
-	return (rand()/(32768/max));
-}
+// drop sliding animation for outside rain
 void drop_sliding_outside() // 
 {
-		// drop_sliding gouttes exterieures 2x to lower
 		
 		asm("ldy #7;"
 				"lda $B400+856+16,y;"
@@ -289,7 +310,7 @@ void drop_sliding_outside() //
 				"sta $B400+856+16;"
 			);
 }
-// load redefined characters
+// redefine characters
 void redefine_char()
 {
    // 0xB400 - 46080 beginning of charset
@@ -301,7 +322,7 @@ void redefine_char()
    
    
 }
-// to redefine rain drop char in tham native graphics
+// to redefine rain drop char in them native graphics
 void redefine_raindrop()
 {
 	poke (CARADDR+864,8);//poke (CARADDR+856,8);
@@ -322,7 +343,8 @@ void redefine_raindrop()
 	poke (CARADDR+862,0);
 	poke (CARADDR+863,0);	
 }
-void player_falling()  // player falling by collission with cat or tile
+// player falling by collission with cat or tile
+void player_falling()  
 {
    char i;
    int time;
@@ -354,7 +376,7 @@ void manage_lightning()
 		{
 		   // afficher foudre
 		   tile_fall=1;
-		   //tile_x=rnd(27)+5;     // must be replace by trigger from array
+		
 		   tile_y=ceiling_y-3;
 		 //  tile_y=5;
 		   tile_fall=1;
@@ -362,8 +384,8 @@ void manage_lightning()
 		   lightning_time=12; // temps de durée de l'éclair  
 		   if (active_sound==1)
 		   { 
-			     // explode();
-				 // music_tempo=12;
+			      explode();
+				  music_tempo=12;
 		   }
 		}
      }
@@ -447,15 +469,13 @@ void manage_lightning()
 }
 void manage_cat()
 {
-
-
 	unsigned int wait;	
 
 	if (cat==0) //si pas de présence du cat générer une valeur aléatoire pour savoir s'il apparait
 	{
 	
 	     //seecat=rand()/(32768/10);
-		 gotoxy(10,0);	 printf("WAVE NUM=%d  ",seecat);
+	
 		 if (seecat==1) //Apparait à gauche
 		 {
 		 
@@ -543,7 +563,7 @@ void manage_cat()
 		{
 	
 		   if (active_sound==1)
-		   { 	²
+		   { 	
 			
 				SoundEffect(cat_collision_sound);				
 				music_tempo=9;				
@@ -565,7 +585,6 @@ void manage_cat()
 		   }
 		}
     }
-	
 }
 void disp_player(char x,char y)
 {
@@ -705,11 +724,12 @@ void disp_player(char x,char y)
 }
 void display_score()
 {
-
    gotoxy(26,26);printf("\5SCORE %d ",score);
 }
+
 // raindrop managment
-// main algoritm s
+//
+
 void manage_rain()
 {
 	if (raindroptime>0)
@@ -811,16 +831,9 @@ void manage_rain()
 			   break;
 			   // end of game Winned
 			}
-			
-			
-			
 			break; // exit if we found a free place in array
-		}
-						
-		
-		
-	} // end for (rdindex=0
-	
+		}						
+	} // end for (rdindex=0	
 	// faire ici une boucle peu importe l'etat drop_sliding
 	// pour le catch de la goutte par le player
 	for (rdindex=0;rdindex<RAINDROPMAX;rdindex++)
@@ -852,8 +865,7 @@ void manage_rain()
 			}
 		}
 	} //end for (rdindex=0
-	
-	
+		
 	if (drop_sliding==0) // etat initial du drop_sliding , la goutte a entierement glissé d'un car a l'autre
 	{
 		for (rdindex=0;rdindex<RAINDROPMAX;rdindex++)
@@ -1002,33 +1014,29 @@ void display_outside()
 			//poke(0xBB80+3+(i*40),0);
 			poke(0xBB80+33+(i*40),4);
 			//poke(0xBB80+36+(i*40),4);			
-		}
-	
-	}
-	
+		}	
+	}	
 }
 void display_floor()
 {
    char i;
 	for (i=24;i<28;i++)
 	{
-			AdvancedPrint(2,i,"~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
-			poke(0xBB80+1+(i*40),5);
+		AdvancedPrint(2,i,"~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+		poke(0xBB80+1+(i*40),5);
 	}
-			// floor
-			
-			asm("ldy #30;"
-				"lda #127;"
-			"suite_floor;"
-				"sta $BB80+4+(24*40),y;"
-				"dey;"				
-				"bne suite_floor;"
-			
-				
-			);
-			
-			poke(0xBB80+3+(7*40),1);
-			poke(0xBB80+3+(8*40),2);			
+	// floor
+	
+	asm("ldy #30;"
+		"lda #127;"
+	"suite_floor;"
+		"sta $BB80+4+(24*40),y;"
+		"dey;"				
+		"bne suite_floor;"					
+	);
+	
+	poke(0xBB80+3+(7*40),1);
+	poke(0xBB80+3+(8*40),2);			
 	
 }
 void display_ceiling()
@@ -1066,7 +1074,7 @@ void display_ceiling()
 		"bne suite_ceiling;");
 		yy--;
 	
-	   // same code but for line over the roof (line of rain drop)
+	   // same code but for line just over the roof (line of rain drop to erase roof line)
 		asm("sta $FFFF;"
 		"lda #$BB;"
 		"sta write_cei2+2;"
@@ -1096,7 +1104,7 @@ void display_ceiling()
 		"sta $1234,y;"
 		"dey;"				
 		"bne suite_ceiling2;");
-	poke(0xBB80+2+(ceiling_y+1*40),1);
+	poke(0xBB80+2+(ceiling_y+1*40),1); //color
 }
 	
 display_left_wall()
@@ -1152,15 +1160,15 @@ display_right_wall()
  
 void display_house()
 {
-	
 	display_ceiling();
 	display_left_wall();
 	display_right_wall();  	
 }			
+
 void main_game_loop()
 {
 	
-	poke(0x26A,10); // 11 curseur revient
+	poke(0x26A,10); // 11 curseur revient ?
 	
 	poke(0x24F,1);
 	poke(0x24E,1);
@@ -1232,7 +1240,7 @@ void main_game_loop()
 		
 		music_tempo--;
 		
-	    if (active_music==1)
+	    if (active_music)
 		{
 			if (music_tempo==0)
 			{
@@ -1267,7 +1275,7 @@ void main_game_loop()
 			   walking=1;
 			   walking_alt=0;
 			}
-		//gotoxy(2,27);printf("INDEX_raindropx:%d ",index_raindropx);
+		gotoxy(2,0);printf("IDX=%d RDX=%d TM=%d  "  ,index_raindropx,codedrop,raindroptime);
         // saut à utiliser quand le cat passe
 		
 		
@@ -1284,7 +1292,9 @@ void main_game_loop()
 		   jump_time--;
 		   if (jump_time==1) // player Fallout
 		   {
-		      SoundEffect(player_fallout_sound);
+			  if (active_sound)			  
+		         SoundEffect(player_fallout_sound);
+			  
 		   }
 		   wait=0;
 		}
@@ -1390,7 +1400,7 @@ void main_game_loop()
 	    	player_wait=100;
 		}
 		
-		// affiche life
+		// display life state :-/
 		
 		if (life==0)
 		{
@@ -1447,8 +1457,8 @@ void init_default_var()
 	seecat=0;
 	
     jump_time=0; 				// pas d'etat de saut par defaut . indicateur de saut du joueur, si en état de saut 
-    wave_nbr=1;				// numéro de vague de gouttes en cours . vague de goutte=niveau
-    index_raindropx=0; 				// se positionner au début du tableau des positions et timing des gouttes
+    wave_nbr=1;				    // numéro de vague de gouttes en cours . vague de goutte=niveau
+    index_raindropx=0; 			// se positionner au début du tableau des positions et timing des gouttes
 	drop_catch_time=0;
     shoot_cat_time=0;
     shoot_tile_time=0;
@@ -1460,7 +1470,7 @@ void init_default_var()
 	tile_y=0;					// y tile position
 	lightning_dice=0;			// random lightning appear
 	lightning_time=0;			// lightning appear duration
-    // initialisation des variables locales
+    
 	k=0;						// k = key(); contient la touche enfoncée
 	game_timer=0;
 	armstandup=0;
@@ -1478,6 +1488,7 @@ void init_default_var()
 	// redef drop
 	redefine_raindrop();
 	
+	// raindrop array initialize
 	for (i=0;i<RAINDROPMAX;i++)
 	{
 		raindropx[i]=0;
@@ -1486,6 +1497,7 @@ void init_default_var()
 		raindropstate[i]=0;
 	}
 }
+// display menu/intro page
 display_menu()
 {
 	paper(6);ink(4);
@@ -1532,7 +1544,7 @@ display_menu()
 	AdvancedPrint(10,19," PRESS SPACE  TO PLAY ");
 	AdvancedPrint(7,21," DIRECTION : ARROWS KEY FOR ");
 	AdvancedPrint(3,23," LEFT & RIGHT <- -> & SPACE TO JUMP ");
-    AdvancedPrint(6,25," S TO ACTIVATE SOUND - M MUSIC ");
+    //AdvancedPrint(6,25," S TO ACTIVATE SOUND - M MUSIC ");
 	// change colors of title for inverted them
 	for (i=0xBB80+80;i<0xBB80+720;i++)
 	{
@@ -1570,9 +1582,11 @@ void main()
 	
 		game_timer++;
 		scroll_text_time++;
+		
+		// SIMPLE TEXT SCROLLING
 		if (scroll_text_time==80)
 		{
-			// SIMPLE TEXT SCROLLING
+			
 			asm(
 			"lda #40;"
 			"sta $FFFF;"
@@ -1601,10 +1615,7 @@ void main()
 			game_timer=0;
 		}
 		
-		// Credit text scrolling
-			
-	    
-		
+			    		
 	   // gotoxy(2,0);printf("ENDGAME=%d",endgame);
 	    kmenu=key();
 		   
@@ -1623,6 +1634,7 @@ void main()
 			
 		//	SoundEffect(rain_menu_sound,sound_volume);
 		}
+		// if press space key to start game
 		if (kmenu==32)
 		{
 			
@@ -1645,9 +1657,9 @@ void main()
 	while(kmenu!=65);
 	//fin:
 	cls();   
-	return;
+	
 	//while(1)
-	// restore ram from rom (0xFC78) charset, still bug , good address ?
+	// restore ram from rom (0xFC78) charset, but bug stilling, good address ?
 	j=CARADDR+(32*8);
 	for (i=0xfc78;i<0xfea8;i++)
 	{
