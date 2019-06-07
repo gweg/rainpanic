@@ -5,26 +5,16 @@
 // reste à implémenter:
 // -------------------
 //
-// les différents niveaux -> toutes les vagues de pluie . actuellement que la 1ere vague
+// -les différents niveaux -> toutes les vagues de pluie . actuellement que la 1ere vague
 //
-// l'eau qui monte dans la maison lorsque les gouttes tombent au sol
-// 
-// gestion de l'actication du son et de la musique
-// 
+// -gestion de l'actication du son et de la musique
+// -le soleil qui apparait
+//
 //
 // BUGS :
 // ------
 //  
-// goutte dans la maison parfois ne s'efface pas du plafond.
-//
-//
-//  autres idées
-//  ------------
-// type de goutte : coeur qui tombe : vie + 1  ?
-// 
-//
-// siphon ?: vide eau  en forme de robinet ?
-//
+//   pbl à 72 ou 73 (tuile en forme de goutte) vérifier datas
 //
 //
 /*  chars coding screen
@@ -77,7 +67,7 @@
   
 #include <lib.h>
 
-#define RAINDROPMAX 24       // max drop sprite in the screen
+#define RAINDROPMAX 20       // max drop sprite in the screen
 #define jump_max_time 8      // time to keep in jump state
 #define music_tempo_delay 4  // delay to temporize the music
 
@@ -103,7 +93,8 @@ char          drop_floor_time=0;
 char          endgame;           // loose game = 1 winned =2
 unsigned int  scroll_text;
 unsigned char scroll_text_time;
-char          px,py;             // player position x & y
+char          px,py;             // ALDO position x & y
+unsigned char armsdown;  // arms set down
 char          waterlevel;
 int           score;
 int           music_index;       // music in for music array indexing
@@ -116,8 +107,6 @@ unsigned char *ptr;              // for sound effect
 char          walking;           // manage walking
 char 		  walking_alt;       // alternate legs chars to walking
 unsigned char jump_time=0;       // gestion du saut du héro 
-
-char unsigned armstandup;        // to manage the rams state
 
 char unsigned catx;              // x cat position 
 char unsigned caty;              // y cat position 
@@ -154,7 +143,11 @@ unsigned char lx;                // or lightning x position
 unsigned char ly;                // for lightning y position
 
 unsigned char being_falling;
-
+// other falling object
+unsigned char obj_kernel;
+unsigned char obj_ice;
+unsigned char obj_x;
+unsigned char obj_y;
 // ma,que son pour le JUMP, la retombé du jump, l'eau tombe à terre
 unsigned char bong_sound[]={104,177,184,44,254,29,166,58,27,83,35,74,2,83};
 unsigned char cat_collision_sound[]={102,144,100,122,168,7,252,9,215,92,153,10,10,1};
@@ -168,6 +161,7 @@ void AdvancedPrint(char x_pos,char y_pos,const char *ptr_message);
 
 char credits_text[]="             RAIN PANIC                "
 					"           INSTRUCTIONS :  DURING A STRONG THUNDERSTORM HELP MR ALDO TO CATCH ALL THE DROPS OF WATER FALLING FROM HIS HOUSE CEILING "
+					"           BE CARREFULL TO THE ICE AND TILE FALLING         "
 					"    USE LEFT AND RIGHT ARROWS TO MOVE ALDO"
 					"    USE SPACE TO JUMP        ESC TO EXIT   "
 					"                                                    "
@@ -190,51 +184,37 @@ char game_music[] = {3,10,2,4,1,4,4,3,2,4,5,3,4,7,1,4,5,2,4,3,4,3,12,2,3,8,4,3,1
 // 255 = next wave
 // 250 = cat appear on the left (cardir)
 // 251 = cat appear on the right
-// 248 = Life fall   - futur append ?
-// 247 = siphon fall - futur append ?
 // 200-226 = lightning appear and use this code to define x position of lighting (Xpox = code-200 + 7)
+// 180-196 = Life fall 
+// 150-176 = ice fall 
 
 // 0x08 or 0x09 must be in hexa don't know why. Its look lika a bug ?!
 unsigned char rain[] = {   //----------------------------------------------|new wave|
 // wave 1
 
-  07,50 ,32,30 ,19,30,  7,30  ,32,40 ,7,60,  16,0,  18,0, 20,30,
-  07,0  ,9,0    ,251,50 ,26,0  ,28,0,  30,0,  32,30, 
-  15,0  ,17,0   ,19,0  ,21,0,  23,30,   // 0 force to align drops in same line
-  07,30 ,9,10  ,11,30 ,251,0    ,28,30  ,30,50,  252,0, 07,40, 251,0 ,32,30, 22,50,
-  251,0, 21,40,252,0, 21,40, 251,0,21,30,  // 38eme
+  07,50 ,32,30,19,30, 07,30 ,32,40 ,7,60, 16,0, 18,0, 20,30,
+  07,0  ,9,0  ,251,50,26,0  ,28,0,  30,0, 32,30, 
+  15,0  ,17,0 ,19,0  ,21,0,  23,30, // 0 force to align drops in same line
 
-  13,35 ,30,35, 251,0 ,07,35 ,251,0, 32,35, 250,0 ,18,35, 215,0, 250,0, 07,35, 251,0, 32,35, 250,0 ,07,35,
-  251,0, 224,0 ,32,35 ,251,0, 07,35, 251,0, 215,0, 32,35, 251,0, 215,0, 07,35, 31,35, 17,35, 14,35, 251,0, 
-  25,35, 207,0, 07,35, 32,35, 07,35, 32,35, 251,0, 20,35, 220,0, 32,35, 07,35, 215,0, 31,35, 215,0, 07,35, 226,0, 30,35, 
-  255,0,
-  250,0,  0x08,35,  200,0, 208,0,  29,35,  251,0,  0x09,35, 220,0,28, 35,251,  0,10,  35, 251,   0,13,   40, 230,   0,30, 40, 16,40, 208,0, 07,40, 250,0,32,40, 
-  18,40,  07,40,    10,40, 251,0,  15,40,  11,40,  24,40,   255,0x0,  32,40,  05,40,  07,0x00, 0x8,0x00, 0x9,0x00, 10,0X00,
-  11,0x0, 12,0X0,  13,0x0, 14,0x0, 15,0x0, 16,0x0, 17,0x0,  18,0x0,   19,0x0, 20,0x0, 21,0x0,   22,0x0,  23,0x0,   24,0x0, 25,0x0,26,0x0,27,0x0,28,0x0,29,0x0,30,0x0,31,0x0,32,0x0,33,0x0,34,0x0
-  
+  07,30 ,9,10 ,11,30 ,251,0 ,28,30  ,30,50,  252,0, 07,40, 251,0 ,32,30, 22,50,
+
+  251,0, 21,30,252,0, 21,40, 251,0,21,30,  // 38eme
+  // 72 pbl 
+  13,35 ,30,35, 251,0 ,07,35 ,251,0, 32,35, 250,0 ,18,35, 215,0, 250,0, 07,35, 251,0, 32,35, 
+  250,0 ,07,35, 251,0, 224,0 ,32,35 ,251,0, 07,35, 251,0, 215,0, 32,35, 251,0, 215,0, 07,35, 
+  31,35, 17,35, 14,35, 251,0 ,25,35, 207,0, 07,35, 32,35, // 72eme
+  07,35, 32,35, 251,0, 20,35, 220,0, 
+  32,35, 07,35, 215,0, 31,35, 215,0, 07,35, 226,0, 30,35, 255,0, // next wave
+  250,0, 0x08,35,200,0, 208,0,  
+  29,35, 251,0, 0x09,35,220,0,28,35, 251,0, 10,35, 251,0, 13,40, 230,0, 30,40, 16,40, 208,0, 
+  07,40, 250,0, 32,40, 18,40, 07,40,  10,40,251,0,  15,40,11,40, 24,40, 255,0x0,32,40,05,40,  
+  07,0x00,0x8,0x00, 0x9,0x00,10,0X00,11,0x0,12,0X0,13,0x0,14,0x0,15,0x0,16,0x0,17,0x0,18,0x0,
+  19,0x0,20,0x0,21,0x0,22,0x0,23,0x0,24,0x0,25,0x0,26,0x0,27,0x0,28,0x0,29,0x0,30,0x0,31,0x0,
+  32,0x0,33,0x0,34,0x0  
 };
-
-void play_music()
-{
-
-	music(1,game_music[music_index],game_music[music_index+1],0);
-	play(1,0,1,(1110*game_music[music_index+2]));
-	music_index+=3;
-	if (music_index>=sizeof(game_music))
-	{
-	   music_index=0;
-	}
-}
 
 // redefined characters for graphics and sprites game
 unsigned char redefchar[]={
-
-// futur possibilité : player les bras en bas 
-// 00,00,00,00,00,00,00,30, // 86 à haut de la tête
-//00,00,00,00,00,00,00,01, // 87 à gauche de la tête
-//00,00,00,00,00,00,00,32, // 88 à droite de la tête
-//03,03,06,06,06,00,06,06, // 89 à gauche du corps
-//48,48,24,24,24,00,24,24, // 90 à droite du corps
 
 01,01,01,01,02,03,06,06, // 91
 63,63,63,63,63,30,00,30, // 92
@@ -244,7 +224,7 @@ unsigned char redefchar[]={
 24,24,24,24,56,48,32,00, // 96
 00,00,00,00,00,00,00,00, // 97 blanc coté gauche du ventre, peut etre recyclé
 63,63,63,00,63,63,63,51, // 98
-00,00,00,00,00,00,00,00, // 99 blanc // peut etre recyclé  pour faire coeur 
+00,30,47,63,63,63,30,00, // 99 - ice boulder
 00,00,00,00,00,00,01,01, // 100
 51,51,51,00,30,30,63,63, // 101
 00,00,00,00,00,00,32,32, // 102
@@ -274,6 +254,154 @@ unsigned char redefchar[]={
 03,02,04,0x08,16,32,00,00// 125 lightning point 3eme caractere redefinit
 // 126, 127 allready used in them native graphics
 }; 
+// de 34 a 44
+unsigned char redefcharExt[]={
+
+// futur possibilité : player les bras en bas 
+00,00,00,00,00,00,00,30, // 34 à haut de la tête
+00,00,00,00,00,00,00,01, // 35 à gauche de la tête
+00,00,00,00,00,00,00,32, // 36 à droite de la tête
+03,03,06,06,06,00,06,06, // 37 à gauche du corps
+48,48,24,24,24,00,24,24, // 38 à droite du corps
+//,62,62,62,28,28,0x8,00  // 39 kernel
+22,61,63,63,30,30,12,00 // 39 kernel
+
+
+};
+// redefine characters
+void redefine_char()
+{
+   // 0xB400 - 46080 beginning of charset
+   // 46808 = char no 86
+  
+   char startchar;
+   j=0;
+   for (i=46808;i<46808+sizeof(redefchar)-1;i++)
+	  *(unsigned char*)i=redefchar[j++];
+   
+}
+
+// happy ALDO
+void redefine_charExt()
+{
+   // 0xB400 - 46080 beginning of charset
+   // 46352 = char no 34
+  
+   char startchar;
+   j=0;
+   for (i=46352;i<46352+sizeof(redefcharExt)-1;i++)
+	  *(unsigned char*)i=redefcharExt[j++];
+   
+}
+
+// win game animation
+void wingame()
+{
+  int pos_scr;
+  int i,j,x,y,t;
+  unsigned char kk;
+  
+  //for (i=0;i<500;i++);
+	//disp_aldo(px,py);
+  
+  // ici bruit de pluie qui s'arrete
+  j=0;  
+  //scanner tout l'écran afin de faire disparaitre les gouttes
+  for (pos_scr=0xBB80;pos_scr<0xBB80+1000;pos_scr++)
+  {
+      if (j++==39) 
+	  {
+	    for (t=0;t<1000;t++);
+	     j=0;
+	  }
+	
+      drop_sliding_outside();
+      if ((peek(pos_scr)==109)||
+		  (peek(pos_scr)==108)||
+		  (peek(pos_scr)==107)||
+		  (peek(pos_scr)==22))
+	     poke(pos_scr,32);
+  }
+  // ici ouvrir la porte à gauche
+
+ 
+  *(unsigned char*)(0Xbb80+(20*40)+4)=32;
+  *(unsigned char*)(0Xbb80+(21*40)+4)=32;
+  *(unsigned char*)(0Xbb80+(22*40)+4)=32;
+  *(unsigned char*)(0Xbb80+(23*40)+4)=32;
+  // Aldo exit the house
+  for (j=0;j<31;j++)
+  {
+    for (wait=0;wait<1000;wait++);
+	scroll_right();
+	if (walking==0)
+	    walking=1;
+	else
+		walking=0;
+	disp_aldo(px,py);
+  }
+  paper(3); //jaune
+  //  the cat come to Aldo
+  for (j=3;j<px-3;j++)
+  {
+    for (i=0;i<1500;i++);
+	*(unsigned char*)(0Xbb80+(caty*40)+j-2)=32;
+	*(unsigned char*)(0Xbb80+(caty*40)+j-1)=0;
+	*(unsigned char*)(0Xbb80+(caty*40)+j)=114;
+	*(unsigned char*)(0Xbb80+(caty*40)+j+1)=115;
+  }
+	// clear hires zone	
+ // for (i=40;i<4480+40;i++)
+	// poke(0xA01B+i,64);
+  // create hire zone in text mode
+
+  
+  for (i=40;i<4480+40;i+=40)
+     poke(0xA01B+i,27);
+  
+  for (i=2;i<14;i++)
+	poke(0xBB80+(i*40)+2,31);
+
+  curset(64,32,1);draw(0,10,1);
+  curset(66,32,1);circle(10,1);
+  // ici faire une musique de victoire
+  // faire un soleil en mode hires ?
+  j=0;
+ *(unsigned char*)(0XBBAA+(40*(caty-2))+px-6)=1;
+
+ 
+  for (wait=0;wait<2000000;wait++)
+  {
+      // ici faire briller le soleil ( animation)
+      if (j==2000) 
+	  {
+  	     *(unsigned char*)(0XBBAA+(40*(caty-2))+px-5)=39;
+		     
+	  }
+	  if (j++==4000) 
+	  {
+		*(unsigned char*)(0XBBAA+(40*(caty-2))+px-5)=32;
+		
+		j=0;
+	  }
+	  kk=key();
+	  if (kk==27)
+	  {
+			break;
+	  }
+  }
+}
+void play_music()
+{
+
+	music(1,game_music[music_index],game_music[music_index+1],0);
+	play(1,0,1,(1110*game_music[music_index+2]));
+	music_index+=3;
+	if (music_index>=sizeof(game_music))
+	{
+	   music_index=0;
+	}
+}
 
 // drop sliding animation for outside rain
 void drop_sliding_outside() // 
@@ -309,20 +437,7 @@ void drop_sliding_outside() //
 				"sta $B400+856+16;"
 			);
 }
-// redefine characters
-void redefine_char()
-{
-   // 0xB400 - 46080 beginning of charset
-   // 46808 = char no 86
-  
-   char startchar;
-   j=0;
-   for (i=46808;i<46808+sizeof(redefchar)-1;i++)
-	  *(unsigned char*)i=redefchar[j++];
-     
-   
-   
-}
+
 // to redefine rain drop char ( 2 char to make drop scrolling over 2 char
 void redefine_raindrop()
 {
@@ -352,7 +467,7 @@ void player_falling()
    for (i=0;i<5;i++)
    {
        
-       disp_player(px,py+i);
+       disp_aldo(px,py+i);
 	   //plot(px,py-1+i,32);
 	   //plot(px+1,py-1+i,32);
 	   //plot(px-1,py-1+i,32);
@@ -365,7 +480,70 @@ void player_falling()
 	  // must manage bottom screen repaint
 	}
      display_floor();   // bug dans cette methode voir si pbl de clc ou registre a sauver sur pile ? 
- }
+}
+// others object falling : ice or kernel
+void manage_falling_obj()
+{	
+	if ((obj_kernel!=0)||(obj_ice!=0))
+	{  
+		if (obj_y<floor_y-3)
+		{
+			obj_y++;		 
+			if (obj_y>ceiling_y+1)
+            {          		
+				*(unsigned char*)(0XBBAA+(40*(obj_y-1))+obj_x)=32;
+				if (obj_kernel==1)
+				{
+					*(unsigned char*)(0XBBAA+(40*obj_y)+obj_x)=39;
+					*(unsigned char*)(0XBBAA+(40*obj_y)+obj_x-1)=1;
+				}
+				if (obj_ice==1)
+				{
+					*(unsigned char*)(0XBBAA+(40*obj_y)+obj_x)=99;
+					*(unsigned char*)(0XBBAA+(40*obj_y)+obj_x-1)=6;
+				}
+				*(unsigned char*)(0XBBAA+(40*obj_y)+obj_x+1)=0;   
+			}		  
+		}
+		else
+		{
+			poke(0XBBAA+(40*obj_y)+obj_x,32);		
+			if (obj_kernel==1)
+				obj_kernel=0;
+		
+			if (obj_ice==1)
+				obj_ice=0;
+		}
+		// fall on Aldo body
+		if ((px-2==obj_x )&&((obj_y>=py-1)&&(obj_y<=py+3)))
+		{
+			if (obj_kernel==1)
+			{
+				if (active_sound==1)
+				{ 
+			       ping();
+				   music_tempo=12;
+				}
+				obj_kernel=0;
+				life++;
+			}
+			if (obj_ice==1)
+			{
+				if (active_sound==1)
+				{ 
+			       explode();
+				   music_tempo=12;
+				}
+				obj_ice=0;
+				being_falling=1;
+			    player_falling();
+			    being_falling=0;
+				life--;
+			}	
+		   
+		}		
+	}
+}
 // manage lightning
 void manage_lightning()
 { 
@@ -424,7 +602,7 @@ void manage_lightning()
 	 } 
 	 if (tile_fall==1)  
 	 {
-		   // if tile fall on the player head
+		   // if tile fall on the player body
 		   if ((px-2==tile_x )&&((tile_y>=py-1)&&(tile_y<=py+3)))
 		   {
 		    
@@ -439,7 +617,7 @@ void manage_lightning()
 			   }
 			   being_falling=1;
 			   player_falling();
-			   being_falling=0,
+			   being_falling=0;
 			   life--;
 		   }
 
@@ -466,8 +644,97 @@ void manage_lightning()
 		  
 		 }
 	 }
-
 }
+void scroll_right()
+{
+	
+		asm("lda #$AA;"
+		"sta write_sr+1;"
+		"sta read_sr+1;"
+		"lda #$BB;"		
+		"sta write_sr+2;"	
+		"sta read_sr+2;"
+		
+	    "ldy #24;"
+		"suite1_sr:"
+			"clc;"
+			"ldx #37;"			
+			"suite2_sr:"
+
+				"dex;"
+				"read_sr:"
+				"lda $1234,x;"											
+				"inx;"				
+				"write_sr:"						
+				"sta $1234,x;"										
+				"dex;"
+			
+			"bne suite2_sr;"
+			"lda write_sr+1;"
+			"adc #40;"
+			"bcc saut_retenue_sr;"
+				"inc write_sr+2;"		
+				"inc read_sr+2;"
+			"saut_retenue_sr:"
+			"sta write_sr+1;"
+			"sta read_sr+1;"
+			"dey;"
+		"bne suite1_sr;");
+}
+
+void scroll_left()
+{
+		asm("lda #$AA;"
+		"sta write1_sl+1;"
+		"sta read1_sl+1;"
+		"lda #$BB;"		
+		"sta write1_sl+2;"	
+		"sta read1_sl+2;"
+		
+	    "ldy #24;"
+		"suite11_sl:"
+			
+			"ldx #0;"			
+			"suite21_sl:"
+			
+				"inx;"
+				"read1_sl:"
+				"lda $1234,x;"											
+				"dex;"				
+				"write1_sl:"						
+				"sta $1234,x;"										
+				"inx;"
+				"cpx #38;"
+			"bne suite21_sl;"			
+			"clc;"
+			"lda read1_sl+1;"
+			"adc #40;"
+			"bcc saut_retenue1_sl;"
+				"inc write1_sl+2;"		
+				"inc read1_sl+2;"
+			"saut_retenue1_sl:"
+			"sta write1_sl+1;"
+			"sta read1_sl+1;"
+			"dey;"
+		"bne suite11_sl;");	
+}
+
+void house_shaking()  // house shaking bc ceiling go down
+{
+    int j;
+	for (j=0;j<4;j++)
+	{
+				
+		scroll_right();
+		for (wait=0;wait<1000;wait++);
+		
+		scroll_left();
+		for (wait=0;wait<1000;wait++);
+
+		}
+    // scroll_left()	
+}
+
 void manage_cat()
 {
 	unsigned int wait;	
@@ -528,15 +795,23 @@ void manage_cat()
 			{
 		       catx++;
 			}
+			if (catx==7)  // restore wall
+			{
+     			*(unsigned char*)(0Xbb80+(caty*40)+1)=4;
+			    *(unsigned char*)(0Xbb80+(caty*40)+2)=109;
+		     	*(unsigned char*)(0Xbb80+(caty*40)+3)=109;
+		    	*(unsigned char*)(0Xbb80+(caty*40)+4)=126|128;
+			}
 			if (catx==37)  //arrivé du cat à la position 36
 			{
 			   // effacement du cat par la pluie et mur
 			  cat=0;
 			 
 			  seecat=0;
-		      *(unsigned char*)(0Xbb80+(caty*40)+catx-2)=126;
+			  *(unsigned char*)(0Xbb80+(caty*40)+catx-3)=4;
+		      *(unsigned char*)(0Xbb80+(caty*40)+catx-2)=126|128;
 			   
-			  *(unsigned char*)(0Xbb80+(caty*40)+catx-1)=4;
+			  *(unsigned char*)(0Xbb80+(caty*40)+catx-1)=109;
 			  *(unsigned char*)(0Xbb80+(caty*40)+catx)=109;
 			}
 		 } 
@@ -546,14 +821,23 @@ void manage_cat()
 			{
 		       catx--;
 			}
+			if (catx==31)   
+ 			{
+			    // restore right wall
+			    *(unsigned char*)(0Xbb80+(caty*40)+34)=4;
+				*(unsigned char*)(0Xbb80+(caty*40)+35)=126|128;
+			    *(unsigned char*)(0Xbb80+(caty*40)+36)=109;
+		     	*(unsigned char*)(0Xbb80+(caty*40)+37)=109;
+			}
 			if (catx==2)  //arrivé du cat à la position 1
 			{
 				seecat=0;
 			 // effacement du cat par la pluie et mur
-				cat=0;
+				cat=0;  
+				// restore left wall
 				*(unsigned char*)(0Xbb80+(caty*40)+catx)=109;
-		     	*(unsigned char*)(0Xbb80+(caty*40)+catx+1)=0;
-		    	*(unsigned char*)(0Xbb80+(caty*40)+catx+2)=126;
+		     	*(unsigned char*)(0Xbb80+(caty*40)+catx+1)=109;
+		    	*(unsigned char*)(0Xbb80+(caty*40)+catx+2)=126|128;
 		
 			}
 		 }
@@ -566,14 +850,17 @@ void manage_cat()
 		   { 	
 			
 				SoundEffect(cat_collision_sound);				
-				music_tempo=9;				
-				player_falling();
+				music_tempo=9;
 				
    	       }
+		   paper(3);
+		   ink(7);		  
+		   being_falling=1;
+		   player_falling();
+		   being_falling=0,
 		   life--;
 		   shoot_cat_time=3; // 4 main program cycles for show color indacte correct catching
-		   paper(3);
-		   ink(7);
+		  
 		   
 		   if (dircat==1)
 		   {
@@ -586,9 +873,9 @@ void manage_cat()
 		}
     }
 }
-void disp_player(char x,char y)
+void disp_aldo(char x,char y)
 {
-    if (armstandup==0)
+    if (armsdown==0)
 	{
     // sceau
 	    *(unsigned char*)(0xbb80+(y*40)+x-1)=91;
@@ -605,8 +892,25 @@ void disp_player(char x,char y)
 		*(unsigned char*)(0xbb80+((y+1)*40)+x-2)=1;
 		*(unsigned char*)(0xbb80+((y+1)*40)+x+2)=0;
 	}
-    // tete
+	else  // arms down Aldo Win
+	{
 	
+	   
+		*(unsigned char*)(0xbb80+((y)*40)+x-1)=0;
+		*(unsigned char*)(0xbb80+((y)*40)+x+1)=0;
+	    *(unsigned char*)(0xbb80+(y*40)+x-2)=5;
+		
+		*(unsigned char*)(0xbb80+(y*40)+x)=34;
+		*(unsigned char*)(0xbb80+(y*40)+x-2)=5;
+		*(unsigned char*)(0xbb80+(y*40)+x+2)=0;
+	    *(unsigned char*)(0xbb80+((y+1)*40)+x-1)=35;
+		*(unsigned char*)(0xbb80+((y+1)*40)+x)=95;
+		*(unsigned char*)(0xbb80+((y+1)*40)+x+1)=36;
+		*(unsigned char*)(0xbb80+((y+1)*40)+x-2)=1;
+		*(unsigned char*)(0xbb80+((y+1)*40)+x+2)=0;
+	}
+	
+    // tete
     if (player_wait>100)  
 	{
 		*(unsigned char*)(0xbb80+((y+1)*40)+x)=106;
@@ -616,19 +920,29 @@ void disp_player(char x,char y)
 		*(unsigned char*)(0xbb80+((y+1)*40)+x)=95;	
 	}
 
-
-	if (jump_time<3)
+    if (armsdown==0)
 	{
-	// ventre en mode non saut	
-		*(unsigned char*)(0xbb80+((y+2)*40)+x-1)=97;
-		*(unsigned char*)(0xbb80+((y+2)*40)+x)=98;
-		*(unsigned char*)(0xbb80+((y+2)*40)+x+1)=99;		
-    	*(unsigned char*)(0xbb80+((y+2)*40)+x-2)=1;	
-		*(unsigned char*)(0xbb80+((y+2)*40)+x+2)=0;
+		if (jump_time<3)
+		{
+		// ventre en mode non saut	
+			*(unsigned char*)(0xbb80+((y+2)*40)+x-1)=97;
+			*(unsigned char*)(0xbb80+((y+2)*40)+x)=98;
+			*(unsigned char*)(0xbb80+((y+2)*40)+x+1)=32;		
+			*(unsigned char*)(0xbb80+((y+2)*40)+x-2)=1;	
+			*(unsigned char*)(0xbb80+((y+2)*40)+x+2)=0;
+		}
+		else // ventre en mode saut
+		{
+			*(unsigned char*)(0xbb80+((y+2)*40)+x)=98;
+		}
 	}
-	else // ventre en mode saut
+	else
 	{
+	    *(unsigned char*)(0xbb80+((y+2)*40)+x-2)=1;
+	    *(unsigned char*)(0xbb80+((y+2)*40)+x-1)=37;
+		*(unsigned char*)(0xbb80+((y+2)*40)+x+1)=38;
 		*(unsigned char*)(0xbb80+((y+2)*40)+x)=98;
+		*(unsigned char*)(0xbb80+((y+2)*40)+x+2)=0;
 	}
     // blancs
 //	poke (0xbb80+((y+2)*40)+x-2,0);
@@ -672,7 +986,7 @@ void disp_player(char x,char y)
 		}
 
 	}
-	else // manage leds on ground
+	else // manage legs on ground 
 	{
 		
 		if (walking==1)  // walking mode
@@ -688,7 +1002,7 @@ void disp_player(char x,char y)
 			*(unsigned char*)(0xbb80+((y+3)*40)+x)=104;
 			*(unsigned char*)(0xbb80+((y+3)*40)+x+1)=105;
 		}
-		if (px<8) // redraw wall on the left
+		if ((px<8)&&(endgame==0)) // redraw wall on the left
 		{
 			*(unsigned char*)(0xbb80+((py+2)*40)+px-2)=4; 
 			*(unsigned char*)(0xbb80+((py+2)*40)+px-3)=126|128; 
@@ -699,14 +1013,16 @@ void disp_player(char x,char y)
 			*(unsigned char*)(0xbb80+((y+2)*40)+x-3)=32;
 		}
 		
-		if (px>31) // redraw wall on the right
+		if ((px>30)&&(endgame==0)) // redraw wall on the right
 		{
-				*(unsigned char*)(0xbb80+((py+2)*40)+px+2)=4;
-				*(unsigned char*)(0xbb80+((py+2)*40)+px+3)=126|128; 
-				*(unsigned char*)(0xbb80+((py+1)*40)+px+2)=4;
-				*(unsigned char*)(0xbb80+((py+1)*40)+px+3)=126|128; 
-				*(unsigned char*)(0xbb80+((py)*40)+px+2)=4;
-				*(unsigned char*)(0xbb80+((py)*40)+px+3)=126|128; 
+				*(unsigned char*)(0xbb80+((py+3)*40)+34)=4;
+				*(unsigned char*)(0xbb80+((py+3)*40)+35)=126|128; 
+		 		*(unsigned char*)(0xbb80+((py+2)*40)+34)=4;
+			  	*(unsigned char*)(0xbb80+((py+2)*40)+35)=126|128; 
+				*(unsigned char*)(0xbb80+((py+1)*40)+34)=4;
+				*(unsigned char*)(0xbb80+((py+1)*40)+35)=126|128; 
+				*(unsigned char*)(0xbb80+((py)*40)+34)=4;
+				*(unsigned char*)(0xbb80+((py)*40)+35)=126|128; 
 		}
 		else
 		{
@@ -764,17 +1080,37 @@ void manage_rain()
 			// second code read from the rain array	
 			// raindroptime = wait delay to read next rain drop
 			raindroptime=rain[index_raindrop+1];
-					
-			if (codedrop>199)
+			// specials code :		
+			if (codedrop>149)
 			{
 				raindropstate[rdindex]=0;
-				if (codedrop>199&&codedrop<227)
+				// lightning
+				if (codedrop>199&&codedrop<227) 
 				{
 					tile_x=codedrop-200;
 				    // get codedrop for X position of lightening
 					lightning_dice=1;
 				}
+				// kernel (life) 180-196 
+				if (codedrop>179&&codedrop<197)
+				{
+					obj_x=codedrop-180;
+				    obj_y=ceiling_y-3;
+					// get codedrop for X position of lightening
+					obj_kernel=1;
+					
+				}
+				// 150-226 = lightning appear and use this code to define x position of lighting (Xpox = code-200 + 7)
+				// ice 150-176
+				if (codedrop>149&&codedrop<178)
+				{
+					obj_x=codedrop-150;
+					obj_y=ceiling_y-3;
+				    // get codedrop for X position of lightening
+					obj_ice=1;
 				
+					
+				}
 				// if codedrop = 250 then cat appear on the right, 251 on the left
 				if (codedrop==250)
 				{
@@ -791,8 +1127,8 @@ void manage_rain()
 				{
 				
 					wave_nbr++;  // vague des gouttes suivantes
-					ceiling_y++; // le plafond s'affesse d'un caractere
-			
+					ceiling_y++; // le plafond s'affesse d'une ligne
+					house_shaking();   
 					//raindroptimer[rdindex]=wait_fall_raindrop; //
 			
 					if (active_sound==1)
@@ -1045,6 +1381,10 @@ void display_ceiling()
 {	// this routine take ceiling_y to draw it at the y=ceiling_y
 	unsigned char yy;
 	yy=ceiling_y;
+
+	//poke(0xBB80+2+((ceiling_y+1)*40),1); //red color for ceiling tile
+	//poke(0xBB80+36+((ceiling_y+1)*40),4); //blue color for ceiling tile
+	
 	asm("sta $FFFF;" // calculate y position
 		"lda #$BB;"
 		"sta write_cei+2;"
@@ -1075,7 +1415,8 @@ void display_ceiling()
 		"dey;"				
 		"bne suite_ceiling;");
 		yy--;
-	
+	if (ceiling_y>6)
+	{
 	   // same code but for line just over the roof (line of rain drop to erase roof line)
 		asm("sta $FFFF;"
 		"lda #$BB;"
@@ -1099,20 +1440,27 @@ void display_ceiling()
 		"inc write_cei2+1;"
 		"inc write_cei2+1;"
 		"clc;"
-		"ldy #30;"  // 30 char
-		"lda #109;" // rain drop
+		"ldy #30;"  // 33 x char
+		"lda #32;" // rain drop=109
 	"suite_ceiling2;"
 	"write_cei2;"
 		"sta $1234,y;"
 		"dey;"				
 		"bne suite_ceiling2;");
-	poke(0xBB80+2+((ceiling_y+1)*40),1); //red color for ceiling tile
-	poke(0xBB80+2+((ceiling_y)*40),4); //red color for ceiling tile
+		poke(0xBB80+5+((ceiling_y)*40),22); // white blue color
+		poke(0xBB80+36+((ceiling_y)*40),23); //white color
+	}
+
+	poke(0xBB80+5+((ceiling_y+1)*40),1|128); //red color for ceiling tile
+	poke(0xBB80+34+((ceiling_y+1)*40),4|128); //blue color for ceiling tile
+   
+
 }
 	
 display_left_wall()
 {
 	xwall=0x98+4;		
+	
 	asm("lda #$BC;"
 		"sta write_wall+2;"
 		"lda %xwall;" // +murx=x +4 en partant de la gauche
@@ -1247,7 +1595,7 @@ void main_game_loop()
 		
 		if (waterlevel==4)
 		{
-			// noyage animation
+			// noyade animation
 			endgame=1; // loose
 		}
 		// time to keep paper & ink flash
@@ -1312,7 +1660,8 @@ void main_game_loop()
 		//	break;
 		//	}
 	
-		manage_lightning();	
+		manage_lightning();
+		manage_falling_obj();		
 		manage_rain();
 
 		
@@ -1332,10 +1681,11 @@ void main_game_loop()
 			   walking=1;
 			   walking_alt=0;
 			}
-		//gotoxy(2,0);printf("IDX=%d CODE=%d TIME=%d  "  ,index_raindrop/2,codedrop,raindroptime);
+		// gotoxy(2,0);printf("IDX=%d CODE=%d TIME=%d  "  ,index_raindrop/2,codedrop,raindroptime);
+		gotoxy(2,0);printf("IDX=%d"  ,index_raindrop/2);
         // saut à utiliser quand le cat passe
 		
-		disp_player(px,py);
+		disp_aldo(px,py);
 		
 		
 		//if (game_timer>132)  //  cat appear
@@ -1355,10 +1705,13 @@ void main_game_loop()
 		   wait=0;
 		}
 		// space key pressed
-		if (((k==32)&&(jump_time==0))||((k==11)&&(jump_time==0)))
+		if (jump_time==0)
 		{
-		    jump_time=jump_max_time; 
-			wait=0;
+			if ((k==32)||(k==11))
+			{
+				jump_time=jump_max_time; 
+				wait=0;
+			}
         }
 		
 		// right key pressed
@@ -1434,6 +1787,14 @@ void main_game_loop()
 		{
 		    
 			
+		}
+		if(k==68)  // 'D' direct to method for debugging
+		{
+		    endgame=2;
+			armsdown=1;
+		    wingame();
+		   
+			k=0;	
 		}
 		if(k==127)  // game pause
 		{
@@ -1537,6 +1898,7 @@ void init_default_var()
 	endgame=0;					// flag to game end
 	px=18;						// position X du joueur
 	py=20;						// position Y du joueur
+	armsdown=0;					// arms down =1
 	score=0;					// score du joueur
 	walking=0;					// indicateur de walking du joueur ( non static)
     walking_alt=0;				// to change legs char to walking
@@ -1549,7 +1911,7 @@ void init_default_var()
 	
     jump_time=0; 				// pas d'etat de saut par defaut . indicateur de saut du joueur, si en état de saut 
     wave_nbr=1;				    // numéro de vague de gouttes en cours . vague de goutte=niveau
-    index_raindrop=0; 			// se positionner au début du tableau des positions et timing des gouttes
+    index_raindrop=0; 			// ****** must be pair. se positionner au début du tableau des positions et timing des gouttes
 	drop_catch_time=0;
     shoot_cat_time=0;
     shoot_tile_time=0;
@@ -1559,16 +1921,19 @@ void init_default_var()
     tile_fall=0;  				// tuile non active par défaut
 	tile_x=0;					// x tile position
 	tile_y=0;					// y tile position
+	obj_kernel=0;
+    obj_ice=0;
+	obj_y=0;
 	lightning_dice=0;			// random lightning appear
 	lightning_time=0;			// lightning appear duration
     
 	k=0;						// k = key(); contient la touche enfoncée
 	game_timer=0;
-	armstandup=0;
+
 	music_index=0;
 	music_tempo=music_tempo_delay;
-	active_sound=0;
-	active_music=0;
+	active_sound=1;
+	active_music=1;
 	rdindex=0;					// index initialize
 	display_wave_level_timer=0;
 	being_falling=0;
@@ -1637,6 +2002,7 @@ display_menu()
 	AdvancedPrint(10,19,"PRESS SPACE  TO PLAY");
 	AdvancedPrint(7,21,"DIRECTION : ARROWS KEY FOR");
 	AdvancedPrint(4,23,"LEFT & RIGHT <- -> & SPACE TO JUMP");
+	
     // text color   // 12 = blink
 	
     //AdvancedPrint(6,25," S TO ACTIVATE SOUND - M MUSIC ");
@@ -1676,7 +2042,7 @@ void main()
 	unsigned char kmenu=00;
 	unsigned int d1,d2; 
 	redefine_char();
-	
+	redefine_charExt();
 	sound_volume=7; // set volume to middle
 	
     init_default_var();
@@ -1766,7 +2132,7 @@ void main()
 			{ 
 			
 				gotoxy(16,12);printf( "GAME OVER ");
-				gotoxy(13,14);printf(" YOUR SCORE :%d",score);
+				gotoxy(16,14);printf(" SCORE:%d",score);
 				for(wait=0;wait<40000;wait++);
 				//poke(0xBB80+(13*40)+9,12);
 				//poke(0xBB80+(13*40)+8,0);
@@ -1775,6 +2141,7 @@ void main()
 	 
 			}
 			endgame=0;
+			cls();
 			display_menu();
 			kmenu=0;
 			
