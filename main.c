@@ -71,9 +71,9 @@
 #define jump_max_time 8      // time to keep in jump state
 #define music_tempo_delay 4  // delay to temporize the music
 
-#define SCRADDR 0xBB80   // address of the text screen
-#define CARADDR 0xB400   // address of std chars to redefine them
-
+#define SCRADDR 0xBB80   	// address of the text screen
+#define CARADDR 0xB400   	// address of std chars to redefine them
+#define def_ceiling_pos 6 	// default ceiling position =6
 // arrays to manage rain drops, for : x y timer state alstate
 
 unsigned char raindropx[RAINDROPMAX];
@@ -156,7 +156,7 @@ unsigned char rain_menu_sound[]={105,243,91,101,202,108,209,215,73,142,13,178,71
 unsigned char silence_sound[]={0,0,0,0,0,0,0,0,0,0,0,0,0,0};                                        
 unsigned char player_fallout_sound[]={68,64,207,83,241,143,141,119,218,145,164,167,2,211};
 
-
+unsigned char read; //to read string from keyboard;
 void AdvancedPrint(char x_pos,char y_pos,const char *ptr_message);
 
 char credits_text[]="             RAIN PANIC                "
@@ -170,7 +170,8 @@ char credits_text[]="             RAIN PANIC                "
 					"  LADYWASKY  DRPSY  KENNETH  ISS AND OTHERS ORICIANS ..           "
 					"  HAVE FUN .....                     ";
 				
-char game_music[] = {3,10,2,4,1,4,4,3,2,4,5,3,4,7,1,4,5,2,4,3,4,3,12,2,3,8,4,3,10,1,
+char game_music[] = 
+{3,10,2,4,1,4,4,3,2,4,5,3,4,7,1,4,5,2,4,3,4,3,12,2,3,8,4,3,10,1,
 3,12,1,4,1,4,3,10,2,3,10,3,3,9,1,3,10,2,3,12,4,3,9,2,3,5,4,3,10,2,  
 4,1,4,4,3,2,4,5,3,4,7,1,4,5,2,4,3,4,3,12,2,3,8,4,3,10,1,3,12,1,     
 4,1,3,3,12,1,3,10,2,3,9,2,3,7,2,3,9,2,3,10,4,3,10,2,3,10,6,0,0};
@@ -180,7 +181,7 @@ char game_music[] = {3,10,2,4,1,4,4,3,2,4,5,3,4,7,1,4,5,2,4,3,4,3,12,2,3,8,4,3,1
 //   WAVES OF RAINDROP DATA 
 //
 // RAIN[] -> raindrop array [XPOS(drop), DELAY(between 2 drop),,,,]
-// rain drop must be bewteen 6 and 32 x position
+// rain drop must be bewteen 6 and 32 x position (7 left---19 center -- right 31) with step of 2 )
 // 255 = next wave
 // 250 = cat appear on the left (cardir)
 // 251 = cat appear on the right
@@ -190,27 +191,31 @@ char game_music[] = {3,10,2,4,1,4,4,3,2,4,5,3,4,7,1,4,5,2,4,3,4,3,12,2,3,8,4,3,1
 
 // 0x08 or 0x09 must be in hexa don't know why. Its look lika a bug ?!
 unsigned char rain[] = {   //----------------------------------------------|new wave|
-// wave 1
-
-  07,50 ,32,30,19,30, 07,30 ,32,40 ,7,60, 16,0, 18,0, 20,30,
+// wave 1        x position (7 left---19 center -- right 31)
+/*
+  19,2, 31,2, 7,2,	
+  7,1, 9,1, 11,1, 13,1, 15,1, 17,1,	19,1, 21,1, 23,1, 25,1, 27,1, 29,1, 31,1, 169,0, 
+  07,40 ,32,30,19,30, 07,30 ,32,40 ,7,60, 16,0, 18,0, 20,30,
   07,0  ,9,0  ,251,50,26,0  ,28,0,  30,0, 32,30, 
   15,0  ,17,0 ,19,0  ,21,0,  23,30, // 0 force to align drops in same line
 
   07,30 ,9,10 ,11,30 ,251,0 ,28,30  ,30,50,  252,0, 07,40, 251,0 ,32,30, 22,50,
 
-  251,0, 21,30,252,0, 21,40, 251,0,21,30,  // 38eme
-  // 72 pbl 
-  13,35 ,30,35, 251,0 ,07,35 ,251,0, 32,35, 250,0 ,18,35, 215,0, 250,0, 07,35, 251,0, 32,35, 
-  250,0 ,07,35, 251,0, 224,0 ,32,35 ,251,0, 07,35, 251,0, 215,0, 32,35, 251,0, 215,0, 07,35, 
-  31,35, 17,35, 14,35, 251,0 ,25,35, 207,0, 07,35, 32,35, // 72eme
-  07,35, 32,35, 251,0, 20,35, 220,0, 
-  32,35, 07,35, 215,0, 31,35, 215,0, 07,35, 226,0, 30,35, 255,0, // next wave
-  250,0, 0x08,35,200,0, 208,0,  
-  29,35, 251,0, 0x09,35,220,0,28,35, 251,0, 10,35, 251,0, 13,40, 230,0, 30,40, 16,40, 208,0, 
-  07,40, 250,0, 32,40, 18,40, 07,40,  10,40,251,0,  15,40,11,40, 24,40, 255,0x0,32,40,05,40,  
-  07,0x00,0x8,0x00, 0x9,0x00,10,0X00,11,0x0,12,0X0,13,0x0,14,0x0,15,0x0,16,0x0,17,0x0,18,0x0,
-  19,0x0,20,0x0,21,0x0,22,0x0,23,0x0,24,0x0,25,0x0,26,0x0,27,0x0,28,0x0,29,0x0,30,0x0,31,0x0,
-  32,0x0,33,0x0,34,0x0  
+  251,0, 21,30,252,0, 21,40, 251,0,21,30,  // 39eme
+  // 73 pbl 
+  */
+  13,3 ,30,3, 251,0 ,07,3 ,251,0, 32,3, 250,0 ,18,3, 215,0, 250,0, 07,3, 251,0, 32,3, 
+  250,0 ,07,3, 251,0, 224,0 ,32,3 ,251,0, 07,3, 251,0, 215,0, 32,3, 251,0, 215,0, 07,3, 
+  31,3, 165,3,17,3, // pbl par la
+  14,3, 251,0 ,25,3, 207,0, 07,35, 32,35, // 73eme
+  07,3, 32,3, 251,0, 20,3, 220,0, 
+  32,3, 07,3, 215,0, 31,3, 215,0, 07,3, 216,0, 30,3, 255,0, // next wave
+  250,0, 0x08,3,212,0, 13,2,  
+  29,3, 251,0, 0x09,3, 220,0, 28,3, 251,0, 10,3, 251,0, 13,4, 230,0, 30,4,  16,4, 208,0, 
+  07,4, 250,0, 32,4,   18,4, 07,4, 10,4, 251,0, 15,4, 11,4, 24,4, 255,0x0,32,4,05,4
+ 
+  
+  
 };
 
 // redefined characters for graphics and sprites game
@@ -235,7 +240,7 @@ unsigned char redefchar[]={
 0x08,0x08,28,28,62,62,46,28,  // 107   goutte à rattraper 1/2 
 00,00,00,00,00,00,00,00, // 108  goutte à rattraper 2/2
 //00,0x08,28,28,62,62,46,28, // 109  goutte de l'extérieur de la maison (pour animation) et page d'intro
-00,00,04,04,14,14,10,04,
+00,00,04,04,14,14,10,04, // 109
 00,00,00,00,00,00,00,00, // 110
 30,63,45,63,63,45,51,30, // 111 head of life number
 04,28,31,15,03,03,02,06, // 112
@@ -350,38 +355,64 @@ void wingame()
 	*(unsigned char*)(0Xbb80+(caty*40)+j)=114;
 	*(unsigned char*)(0Xbb80+(caty*40)+j+1)=115;
   }
-	// clear hires zone	
- // for (i=40;i<4480+40;i++)
-	// poke(0xA01B+i,64);
-  // create hire zone in text mode
-
-  
+  *(unsigned char*)(0XBBAA+(40*(caty-2))+j-3)=1; // color of kernel
+	
+  // clear the hires window 
+  for (i=40;i<4480+40;i++)
+     poke(0xA01B+i,64);   // 64 = correct
+ 
+  // set the text mode in hires
   for (i=40;i<4480+40;i+=40)
      poke(0xA01B+i,27);
-  
+
+  // set the hires mode in text
   for (i=2;i<14;i++)
 	poke(0xBB80+(i*40)+2,31);
 
-  curset(64,32,1);draw(0,10,1);
-  curset(66,32,1);circle(10,1);
+  // set the colors of inside window
+  for (i=2;i<14;i++)
+  {
+	poke(0xBB80+(i*40)+1,7);  // white before hires blox
+	poke(0xBB80+(i*40)+28,4); // blue before house
+  }  
+
+  poke(0x24E,10);
+  // set graphicals primitives on in text mode
+  poke(0x213,255);  
+  // draw the sun
+  for(j=1;j<32;j++)  
+  {
+	curset(90,64,1);circle(j,1);
+  }
+  poke(0xBB80+608,12); // 12 blink
+  poke(0xBB80+633,8); // 12 blink
+  AdvancedPrint(10,15,"CONGRATULATION ADLO !");
   // ici faire une musique de victoire
   // faire un soleil en mode hires ?
+  
+  exit(1); //for debugging
   j=0;
- *(unsigned char*)(0XBBAA+(40*(caty-2))+px-6)=1;
-
  
+  // kernel color
+  
   for (wait=0;wait<2000000;wait++)
   {
       // ici faire briller le soleil ( animation)
+	  // make sun shining
       if (j==2000) 
 	  {
   	     *(unsigned char*)(0XBBAA+(40*(caty-2))+px-5)=39;
-		     
+		curset(90,64,1);circle(34,1);
+		curset(90,64,1);circle(38,1);
+		curset(90,64,1);circle(48,1);    
 	  }
 	  if (j++==4000) 
 	  {
 		*(unsigned char*)(0XBBAA+(40*(caty-2))+px-5)=32;
-		
+		curset(90,64,1);circle(48,0);
+		curset(90,64,1);circle(38,0);
+		curset(90,64,1);circle(34,0);
+
 		j=0;
 	  }
 	  kk=key();
@@ -573,7 +604,7 @@ void manage_lightning()
 	    lightning_time--;
 	    for (ly=0;ly<ceiling_y-1;ly++)
 		{
-		    // affiche éclair
+		    // display the lightning
 			//poke(0XBBAA+(40*ly)+tile_x-1,3);
 			*(unsigned char*)(0XBBAA+(40*ly)+tile_x-1)=123|128;
 			*(unsigned char*)(0XBBAA+(40*ly)+tile_x)=124|128;
@@ -585,24 +616,39 @@ void manage_lightning()
 		//poke(0XBBAA+(40*(ly))+tile_x+1,4);
 		if (lightning_time==1)
 		{
-		
+            // clear ligthning		
 			for (ly=0;ly<ceiling_y-1;ly++)
 			{
 			    // efface éclair avec gouttes
-				*(unsigned char*)(0XBBAA+(40*ly)+tile_x-1)=109;
-				*(unsigned char*)(0XBBAA+(40*ly)+tile_x)=109;
-				*(unsigned char*)(0XBBAA+(40*ly)+tile_x+1)=109;
-				*(unsigned char*)(0XBBAA+(40*ly)+tile_x+2)=109;	
+				if (ly<def_ceiling_pos)
+				{
+					*(unsigned char*)(0XBBAA+(40*ly)+tile_x-1)=109;
+					*(unsigned char*)(0XBBAA+(40*ly)+tile_x)=109;
+					*(unsigned char*)(0XBBAA+(40*ly)+tile_x+1)=109;
+					*(unsigned char*)(0XBBAA+(40*ly)+tile_x+2)=109;	
+				}
+				else
+				{
+					*(unsigned char*)(0XBBAA+(40*ly)+tile_x-1)=32;
+					*(unsigned char*)(0XBBAA+(40*ly)+tile_x)=32;
+					*(unsigned char*)(0XBBAA+(40*ly)+tile_x+1)=32;
+					*(unsigned char*)(0XBBAA+(40*ly)+tile_x+2)=32;	
+				
+				}
 			}
-			*(unsigned char*)(0XBBAA+(40*ly)+tile_x-1)=109;
-			*(unsigned char*)(0XBBAA+(40*ly)+tile_x)=109;
-			*(unsigned char*)(0XBBAA+(40*ly)+tile_x+1)=109;
+			if (ly<def_ceiling_pos)
+				*(unsigned char*)(0XBBAA+((40*ly+2))+tile_x-3)=109;
+			else
+				*(unsigned char*)(0XBBAA+((40*ly+2))+tile_x-3)=32;
+			//*(unsigned char*)(0XBBAA+(40*ly)+tile_x-1)=109;
+			//*(unsigned char*)(0XBBAA+(40*ly)+tile_x)=109;
+			//*(unsigned char*)(0XBBAA+(40*ly)+tile_x+1)=109;
 		    lightning_time=0;
 		}
 	 } 
 	 if (tile_fall==1)  
 	 {
-		   // if tile fall on the player body
+		   // tile collision with the player
 		   if ((px-2==tile_x )&&((tile_y>=py-1)&&(tile_y<=py+3)))
 		   {
 		    
@@ -630,9 +676,6 @@ void manage_lightning()
 				*(unsigned char*)(0XBBAA+(40*tile_y)+tile_x)=122;
 				*(unsigned char*)(0XBBAA+(40*tile_y)+tile_x+1)=0;
 				*(unsigned char*)(0XBBAA+(40*tile_y)+tile_x-1)=1;		   
-			 }
-			 else
-			 {
 			 }
 		 }
 		 else
@@ -977,7 +1020,7 @@ void disp_aldo(char x,char y)
 		{
 			*(unsigned char*)(0xbb80+((y+2)*40)+x+3)=0;
 		}
-		if (jump_time==jump_max_time) // pour n'effacer qu'un fois les jambes du bas
+		if (jump_time==jump_max_time) // pour n'r qu'un fois les jambes du bas
 		{
 			// blancs à la place des jambes du bas
 			*(unsigned char*)(0xbb80+((y+3)*40)+x-1)=32;
@@ -1049,8 +1092,8 @@ void display_score()
 
 void manage_rain()
 {
-	if (raindroptime>0)
-	   raindroptime--; // espace de temps entre les gouttes: temps en therme de cycle
+//	if (raindroptime>0)
+//	   raindroptime--; // espace de temps entre les gouttes: temps en therme de cycle
 	
 	
 	//gotoxy(5,5);printf("TIME=%d  ",raindroptime);
@@ -1058,28 +1101,33 @@ void manage_rain()
 	for (rdindex=0;rdindex<RAINDROPMAX;rdindex++)
 	{	
 		// activate a new drop
-		// here we find a free place in the raindrop array if raindroptime=0
+		// here we find a free place in the raindrop to create a new drop . array if raindroptime=0
 		if (raindropstate[rdindex]==0 && raindroptime<1)
 		{
+		
 			raindropstate[rdindex]=1; // cellule de la goutte devient occupée
-				
+			
 			if (altchar==0)
 				raindropy[rdindex]=ceiling_y+1;
 			else
 				raindropy[rdindex]=ceiling_y+2;		
-				
+			
+			
 			//gotoxy(5,6);printf("TIME=%d  ",raindroptime);
 			// 1rst code read from the rain array
 			codedrop=rain[index_raindrop];			
 			// initialiser la position x de la nouvelle goute depuis le tableau rain[]
 			raindropx[rdindex]=codedrop;
-			
+			if (codedrop<150)
+				poke(0XBB80+(40*(ceiling_y+1))+codedrop,122);
+				
 			// delai entre 2 gouttes
 			//décompte lors du déplacement de la goutte
 			// à lire dans le tableau des vagues
 			// second code read from the rain array	
 			// raindroptime = wait delay to read next rain drop
 			raindroptime=rain[index_raindrop+1];
+			
 			// specials code :		
 			if (codedrop>149)
 			{
@@ -1204,6 +1252,7 @@ void manage_rain()
 	// here manage sliding state = 0 to alternate the two drop char
 	if (drop_sliding==0) // etat initial du drop_sliding , la goutte a entierement glissé d'un char a l'autre
 	{
+
 		for (rdindex=0;rdindex<RAINDROPMAX;rdindex++)
 		{			
 			// if array cellule is busy  = rain drop active
@@ -1239,7 +1288,7 @@ void manage_rain()
 	}
 	else // manage intermediate rain drop sliding state  - etat de glissement de goutte intermédiaire
 	{
-	   // reserve time for late compentation
+	   // reserve time to time compentation with the previous loop
 	   for(wait=0;wait<50;wait++);
 	   // rain drop char (107&108) verticaly scroll managing
 	   
@@ -1299,7 +1348,11 @@ void manage_rain()
 			drop_sliding=0;			
 			// altcharernate char
 			if (altchar==0)		 
-			   altchar=1;
+			{
+				altchar=1;
+			    if (raindroptime>0)
+					raindroptime--; // espace de temps entre les gouttes: temps en therme de cycle			  
+			}
 			else
 			   altchar=0;
 			   // on incrémente le y de la boucle (après 8 drop_sliding d'octet vers le bas)
@@ -1483,6 +1536,7 @@ display_left_wall()
 		"bne suite_wall;"
 	);
 }
+// invverse certain color in menu page 
 color_inverse_menu()
 {		
 	asm("lda #$BB;"
@@ -1889,12 +1943,151 @@ void main_game_loop()
     poke(0x24E,10);
 }
 
+/*
+void clear_insidehouse()
+{
+	char x,y;
+	for (y=8;y<22;y++)
+		for (x=7;x<33;x++)
+		    *(unsigned char*)(0xbb80+((y+1)*40)+x)=32;
+}
+void scroll_down()
+{
+	char x,y,c;
+	for (y=8;y<22;y++)
+		for (x=7;x<33;x++)
+		{
+		    c=peek(0xbb80+((y+2)*40)+x);
+		    *(unsigned char*)(0xbb80+((y+1)*40)+x)=c;
+		}
+}
+void scroll_up()
+{
+	char x,y,c;
+	for (y=21;y>7;y--)
+		for (x=7;x<33;x++)
+		{
+		    c=peek(0xbb80+((y+1)*40)+x);
+		    *(unsigned char*)(0xbb80+((y+2)*40)+x)=c;		
+		}
+}
+void disp_array(char pos)
+{
+	char x,y;
+	y=17;
+	
+	gotoxy(0,1);
+	for (i=0;i<8;i+=2)
+	{
+		if ((i+pos)<sizeof(rain))
+		{
+			//*(unsigned char*)(0xbb80+((2)*40)+2)=4;
+			printf("<(%d)(%d)> ",rain[i+pos],rain[i+1+pos]);
+			// affiche gouttes
+			x=rain[i];
+			y=y-(rain[i+1+pos]+1)*2;
+			*(unsigned char*)(0xbb80+((y+7)*40)+x)=107;
+		}
+	}
+}
+// level editor
+void level_editor()
+{
+    char arraypos=0;
+	char keyedit;
+	char xedit=19;
+	char yedit=15;
+	char dropnum=0;
+	char lastx,lasty,c;
+    redefine_char();
+		    //gotoxy(2,1);printf("INS DATA (X,TIME):");scanf("%s", read); // scan srting for data
+			
+    index_raindrop=0;
+	lastx=xedit;
+	lasty=yedit;
+	c=peek(0xbb80+((yedit+1)*40)+xedit);
+	do 
+	{  
+	    // afficher les données suivant le drop num et les time des drop sont les espace en Y
+		// on commence par l'élément 0 à la ligne 8 puis on peut scroller vers le bas
+		// pour faire défiler les données
+		// display line avec le décalage deligne en Y(raindroptime) depuis la premiere goutte à la suivante
+	  
+        gotoxy(2,0);printf("X=%d  Y=%d  IDX=%d ",xedit,yedit-7,arraypos);
+		
+		disp_array(arraypos);
+		//gotoxy(xedit,yedit+1);
+		lastx=xedit;
+		lasty=yedit;
+	
+		keyedit=key();
+		if (keyedit==75&&arraypos>0) // K
+		{
+			clear_insidehouse();
+			arraypos-=2;
+		}
+		if (keyedit==76&&arraypos<sizeof(rain)-2)   // Ls
+		{
+			clear_insidehouse();
+			arraypos+=2;
+		}
+		if (keyedit==9&&xedit<32)
+		{
+			xedit++;
+		}
+		if (keyedit==8&&xedit>7)
+		{
+			xedit--;
+		}
+		if (keyedit==11&&yedit>ceiling_y+1)
+		{			
+			yedit-=2;
+		}
+		if (keyedit==10&&yedit<18)
+		{
+				
+			yedit+=2;
+		}
+		
+		if (keyedit==32)
+		{
+			c=peek(0xbb80+((lasty+1)*40)+lastx);
+			if (c==32)
+				*(unsigned char*)(0xbb80+((lasty+1)*40)+lastx)=107;
+			else
+				*(unsigned char*)(0xbb80+((lasty+1)*40)+lastx)=32;
+			c=peek(0xbb80+((yedit+1)*40)+xedit);
+			index_raindrop++;		
+		}
+		*(unsigned char*)(0xbb80+((lasty+1)*40)+lastx)=c;
+		c=peek(0xbb80+((yedit+1)*40)+xedit);
+		*(unsigned char*)(0xbb80+((yedit+1)*40)+xedit)=107;
+		
+		//disp_aldo(xedit,20);
+		
+		if (keyedit==83) // 'S' scroll up
+		{
+		
+		scroll_up();
+		}
+		if (keyedit==88) // 'X' scoll down
+		{
+		
+		scroll_down();
+		}
+		
+	} while (keyedit!=27);
+}
+*/		
+
+			
+
 void init_default_var()
 {
 	// initialisation des variables globales
 	raindroptime=0; 			//delai d'wait entre entre 2 gouttes
 	waterlevel=0; 				// niveau de l'eau au sol
-	ceiling_y=6;
+	ceiling_y=def_ceiling_pos;	// default ceiling position
 	endgame=0;					// flag to game end
 	px=18;						// position X du joueur
 	py=20;						// position Y du joueur
@@ -1911,7 +2104,7 @@ void init_default_var()
 	
     jump_time=0; 				// pas d'etat de saut par defaut . indicateur de saut du joueur, si en état de saut 
     wave_nbr=1;				    // numéro de vague de gouttes en cours . vague de goutte=niveau
-    index_raindrop=0; 			// ****** must be pair. se positionner au début du tableau des positions et timing des gouttes
+    index_raindrop=0*2; 			// ****** must be pair. se positionner au début du tableau des positions et timing des gouttes
 	drop_catch_time=0;
     shoot_cat_time=0;
     shoot_tile_time=0;
@@ -2000,8 +2193,8 @@ display_menu()
 	AdvancedPrint(2,16,"m! mmmmmm! mmm! m! mmm! m! mm!    mmmm");
 	AdvancedPrint(2,17,"m!mmmmmmm!mmmm!mm!mmmm!mm!mmmm!!!mmmmm");
 	AdvancedPrint(10,19,"PRESS SPACE  TO PLAY");
-	AdvancedPrint(7,21,"DIRECTION : ARROWS KEY FOR");
-	AdvancedPrint(4,23,"LEFT & RIGHT <- -> & SPACE TO JUMP");
+	AdvancedPrint(7,21,"DIRECTION : ARROWS KEY");
+	AdvancedPrint(4,23,"<- LEFT RIGHT -> AND SPACE TO JUMP");
 	
     // text color   // 12 = blink
 	
@@ -2099,9 +2292,11 @@ void main()
 	    kmenu=key();
 		   
 		//drop_sliding++;
-		//gotoxy(2,0);
-	    //printf("KEY=%d ",kmenu);
-		
+		if (kmenu!=0)
+		{
+			gotoxy(30,0);
+			printf("KEY=%d ",kmenu);
+		}
 		
 		if (kmenu==83) // touche 'S'
 		{		
@@ -2113,6 +2308,26 @@ void main()
 			
 		//	SoundEffect(rain_menu_sound,sound_volume);
 		}
+		
+		if(kmenu==73)  // 'I' goto level editor 
+		{
+			//init_default_var();
+			cls();
+			gotoxy(0,0);printf("                                        ");
+			paper(7);
+			display_outside();
+			display_house();
+		
+			display_floor();
+			
+			//level_editor();	
+			endgame=0;
+			cls();
+			display_menu();
+			kmenu=0;
+			
+		}
+		
 		// if press space key to start game
 		if (kmenu==32)
 		{
