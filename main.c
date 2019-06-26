@@ -8,7 +8,6 @@
 // -les différents niveaux -> toutes les vagues de pluie . actuellement que la 1ere vague
 //
 // -gestion de l'actication du son et de la musique
-// -le soleil qui apparait
 //
 //
 // BUGS :
