@@ -1,7 +1,8 @@
 //  RAIN PANIC   alpha version
 //  GOYO 2019 (C)
 //
-//
+//  HIMEM on peut descendre à #600 (basic à #400)
+//  HI user ram  #9800
 // reste à implémenter:
 // -------------------
 //
@@ -9,13 +10,14 @@
 //
 // -gestion de l'actication du son et de la musique
 // 
-//
+// - jambe qui marchent durant le déplacement continue
 //
 // BUGS :
 // ------
 //  
-//   forme du chat    
+//   chat shape
 //
+//   legs traces
 //
 /*  chars coding screen
   25C=7,64  WAVE 1,zzzzzzzzzzzzzzzANDz    
@@ -67,46 +69,57 @@
   
 #include <lib.h>
 
+
+
 #define RAINDROPMAX 20       // max drop sprite in the screen
 #define jump_max_time 8      // time to keep in jump state
-#define music_tempo_delay 4  // delay to temporize the music
+#define benddown_max_time 8     // time to Aldo benddown
+#define music_tempo_delay 6  // delay to temporize the music
 
 #define SCRADDR 0xBB80   	// address of the text screen
 #define CARADDR 0xB400   	// address of std chars to redefine them
 #define def_ceiling_pos 6 	// default ceiling position =6
 // arrays to manage rain drops, for : x y timer state alstate
+#define floor_y 25
+
+#define DEBUG
 
 unsigned char raindropx[RAINDROPMAX];
 unsigned char raindropy[RAINDROPMAX];
 //unsigned char raindroptimer[RAINDROPMAX]="";
 unsigned char raindropstate[RAINDROPMAX]="";
 
-int           index_raindrop;   // index to read from the rain[] array
+int           index_raindrop;    // index to read from the rain[] array
 
 unsigned char codedrop;          // to read drop x position value in Rain[] array.
 int           raindroptime;      // to read time drop => time between two drops
 
-char 		  drop_catch_time=0;
-char 		  shoot_cat_time=0;
-char          shoot_tile_time=0;
-char          drop_floor_time=0;
+unsigned int  timer1,timer2;
+
+char 		  drop_catch_time;   // paper 6 during this time to indicate catch is successfull
+char 		  shoot_cat_time;    // paper cyan during this time to indicate shoot with the cat
+char          shoot_tile_time;   //
+char          drop_floor_time;   //
 char          endgame;           // loose game = 1 winned =2
 unsigned int  scroll_text;
 unsigned char scroll_text_time;
 char          px,py;             // ALDO position x & y
-unsigned char armsdown;  // arms set down
-char          waterlevel;
-int           score;
+unsigned char armsdown;  		 // arms set down
+unsigned char legsup;  			 //   legs set up
+char          waterlevel;		 // level of water
+int           score;		     // game score
 int           music_index;       // music in for music array indexing
 int           music_tempo;       // music temporisation 
-unsigned int  wait;
-char          active_sound;
-char          active_music;
-char          sound_volume;
-unsigned char *ptr;              // for sound effect
+unsigned int  wait;				 // global variable to manage wait time
+char          active_sound;      // activated sound state
+char          active_music;      // activated music state
+char          volume;		     // game sound volume
 char          walking;           // manage walking
 char 		  walking_alt;       // alternate legs chars to walking
+
 unsigned char jump_time=0;       // gestion du saut du héro 
+unsigned char benddown=0;		 // time to avoid the fireball
+unsigned char standuptime;       // time to standup : to avoid to jump just after stand up
 
 char unsigned catx;              // x cat position 
 char unsigned caty;              // y cat position 
@@ -114,33 +127,45 @@ char unsigned cat;               // pour savoir si le cat est prensent ou pas
 char          dircat;            // direction du cat
 char unsigned catwait;           // delai du cat qui reste sur place avant de partir
 char          seecat;            // if cat is visible  
+char 		  colcat;			 // enable collision with the cat
+unsigned char colcattime;	     // duration of collision of Aldo with the cat enabled
+
+char unsigned fireballx;         // x fireball position 
+char unsigned firebally;         // y fireball position 
+char unsigned fireball;          // pour savoir si le fireball est prensent ou pas
+char unsigned dirfireball;       // direction du fireball
+char unsigned fireballwait;      // delai du fireball qui reste sur place avant de partir
+
+char unsigned seefireball;
+char unsigned colfireballtime;   // duration of collision of Aldo with fireball enabled
+
 char unsigned player_wait;       // close eyes afeter no activity
-unsigned char k,k2;	             // to read the key pressed  : k=key(); 	
+unsigned char k,lastk;           // to read the key pressed  : k=key(); 	
 
 char unsigned wave_nbr;
 char          ceiling_y;         // hauteur du plafond = 8 fixe
 
 unsigned int  game_timer;        // compteur de temps général durant le jeu
 char          life; 			 // player lifes
-char unsigned tile_fall;         // si foudre active
-char unsigned lightning_dice;    // dé de hazard pour la foudre
-int  unsigned lightning_time;
+char unsigned tile_fall;         // if tile fall
+char unsigned lightning;         // if lightning actived
+int  unsigned lightning_time;	 // duration of lightning
 char unsigned tile_x;            // position x of the beam
 char unsigned tile_y;            // position y of the beam
 
 unsigned char rdindex; 
-unsigned char floor_y=25;
+
 char          altchar;			 // to alternate char for the falling rain drop
 unsigned char drop_sliding;		 // y step of vertically scrolling for the rain drop
 int           adr;   		     // use for assembly inline
 unsigned int  i,j;               // usefull in many time in this program  
-				
-unsigned int  wait_fall_raindrop=11;  // delay of time for the speed of falling rain drop
-unsigned      display_wave_level_timer;
-unsigned char xwall;
+		
+unsigned      display_wave_level_timer; // used to display the wave level
 
-unsigned char lx;                // or lightning x position
-unsigned char ly;                // for lightning y position
+
+unsigned char lx;                // used to display lightning
+unsigned char ly;                // used to display lightning
+
 
 unsigned char being_falling;
 // other falling object
@@ -148,6 +173,7 @@ unsigned char obj_kernel;
 unsigned char obj_ice;
 unsigned char obj_x;
 unsigned char obj_y;
+
 // ma,que son pour le JUMP, la retombé du jump, l'eau tombe à terre
 unsigned char bong_sound[]={104,177,184,44,254,29,166,58,27,83,35,74,2,83};
 unsigned char cat_collision_sound[]={102,144,100,122,168,7,252,9,215,92,153,10,10,1};
@@ -155,7 +181,7 @@ unsigned char cat_at_door_sound[]={28,188,255,21,247,92,136,18,176,229,253,145,1
 unsigned char rain_menu_sound[]={105,243,91,101,202,108,209,215,73,142,13,178,71,11};                          
 unsigned char silence_sound[]={0,0,0,0,0,0,0,0,0,0,0,0,0,0};                                        
 unsigned char player_fallout_sound[]={68,64,207,83,241,143,141,119,218,145,164,167,2,211};
-unsigned char player_jump_sound[]={28,188,255,21,247,92,136,18,176,229,253,145,1,9};
+unsigned char player_jump_sound[]={238,2,0,0,0,0,77,14,16,0,0,0,4,4};
 
 unsigned char scroll_y;
 unsigned char scroll_y_nbr;
@@ -177,142 +203,34 @@ char credits_text[]="             RAIN PANIC                "
 					"  HAVE FUN .....                     ";
 				
 char game_music[] = {
-1,7,12,4,0,0,0,0,
-1,7,12,4,0,0,0,0,
-1,7,11,4,0,0,0,0,
-1,7,11,4,0,0,0,0,
-1,7,9,4,0,0,0,0,
-3,3,9,4,8,2,0,0, //Intro,A2,,,,,,,
-6,7,0,0,8,3,4,4,
-3,3,9,4,8,2,0,0,
-7,7,11,4,8,3,4,4,
-2,3,0,0,7,2,0,0,
-7,7,11,4,7,3,2,4,
-2,3,0,0,7,2,0,0,
-7,7,11,4,7,3,2,4,
-2,3,0,0,5,2,0,0,
-7,7,12,4,5,3,12,4,
-2,3,0,0,5,2,0,0,
-7,7,12,4,5,3,12,4,
-3,3,12,4,5,2,0,0,
-7,7,11,4,5,3,12,4,
-3,3,11,4,5,2,0,0,
-7,7,9,4,5,3,12,4,
-3,3,9,4,8,2,0,0,
-6,7,0,0,8,3,4,4,
-3,3,12,4,8,2,0,0,
-7,7,2,5,8,3,4,4,
-2,3,0,0,7,2,0,0,
-7,7,12,4,7,3,2,4,
-3,3,11,4,7,2,0,0,
-7,7,9,4,7,3,2,4,
-2,3,0,0,5,2,0,0,
-6,7,0,0,5,3,12,4,
-2,3,0,0,5,2,0,0,
-7,7,12,4,5,3,12,4,
-1,7,12,4,0,0,0,0,
-3,3,12,4,5,2,0,0,
-7,7,11,4,5,3,12,4,
-3,3,11,4,5,2,0,0,
-6,7,9,4,5,3,12,4,
-2,3,9,4,8,2,0,0,
-6,7,0,0,8,3,4,4,
-3,3,12,4,8,2,0,0,
-6,7,0,0,8,3,4,4,
-3,3,7,4,7,2,0,0,
-6,7,0,0,7,3,2,4,
-2,3,0,0,7,2,0,0,
-7,7,12,4,7,3,2,4,
-3,3,11,4,5,2,0,0,
-7,7,9,4,5,3,12,4,
-3,3,11,4,5,2,0,0,
-7,7,12,4,5,3,12,4,
-2,3,0,0,5,2,0,0,
-6,7,0,0,5,3,12,4,
-2,3,0,0,5,2,0,0,
-6,7,0,0,5,3,12,4, 
-3,3,12,4,8,2,0,0, //Boucle,A3,,,,,,,
-6,7,0,0,8,3,4,4,
-3,3,7,4,8,2,0,0,
-7,7,7,4,8,3,4,4,
-2,3,0,0,7,2,0,0,
-7,7,4,4,7,3,2,4,
-3,3,7,4,7,2,0,0,
-7,7,7,4,7,3,2,4,
-2,3,0,0,5,2,0,0,
-6,7,0,0,5,3,12,4,
-2,3,0,0,5,2,0,0,
-7,7,12,4,5,3,12,4,
-3,3,12,4,5,2,0,0,
-7,7,11,4,5,3,12,4,
-3,3,11,4,5,2,0,0,
-7,7,9,4,5,3,12,4,
-3,3,9,4,8,2,0,0, //Boucle,A2,,,,,,,
-6,7,0,0,8,3,4,4,
-3,3,9,4,8,2,0,0,
-7,7,11,4,8,3,4,4,
-2,3,0,0,7,2,0,0,
-7,7,11,4,7,3,2,4,
-2,3,0,0,7,2,0,0,
-7,7,11,4,7,3,2,4,
-2,3,0,0,5,2,0,0,
-7,7,12,4,5,3,12,4,
-2,3,0,0,5,2,0,0,
-7,7,12,4,5,3,12,4,
-3,3,12,4,5,2,0,0,
-7,7,11,4,5,3,12,4,
-3,3,11,4,5,2,0,0,
-7,7,9,4,5,3,12,4,
-3,3,9,4,8,2,0,0,
-6,7,0,0,8,3,4,4,
-3,3,12,4,8,2,0,0,
-7,7,2,5,8,3,4,4,
-2,3,0,0,7,2,0,0,
-7,7,12,4,7,3,2,4,
-3,3,11,4,7,2,0,0,
-7,7,9,4,7,3,2,4,
-2,3,0,0,5,2,0,0,
-6,7,0,0,5,3,12,4,
-2,3,0,0,5,2,0,0,
-7,7,12,4,5,3,12,4,
-1,7,12,4,0,0,0,0,
-3,3,12,4,5,2,0,0,
-7,7,11,4,5,3,12,4,
-3,3,11,4,5,2,0,0,
-6,7,9,4,5,3,12,4,
-2,3,9,4,8,2,0,0,
-6,7,0,0,8,3,4,4,
-3,3,12,4,8,2,0,0,
-6,7,0,0,8,3,4,4,
-3,3,7,4,7,2,0,0,
-6,7,0,0,7,3,2,4,
-2,3,0,0,7,2,0,0,
-7,7,12,4,7,3,2,4,
-3,3,11,4,5,2,0,0,
-7,7,9,4,5,3,12,4,
-3,3,11,4,5,2,0,0,
-7,7,12,4,5,3,12,4,
-2,3,0,0,5,2,0,0,
-6,7,0,0,5,3,12,4,
-2,3,0,0,5,2,0,0,
-6,7,0,0,5,3,12,4, //Fin,A4,,,,,,,
-3,3,2,5,8,2,0,0,
-6,7,0,0,8,3,4,4,
-3,3,7,4,8,2,0,0,
-7,7,7,4,8,3,4,4,
-2,3,0,0,7,2,0,0,
-7,7,4,4,7,3,2,4,
-3,3,7,4,7,2,0,0,
-7,7,7,4,7,3,2,4,
-3,3,5,4,5,2,0,0,
-6,7,0,0,5,3,12,4,
-3,3,4,5,5,2,0,0,
-6,7,0,0,5,3,12,4,
-3,3,2,5,5,2,0,0,
-1,7,9,4,0,0,0,0,
-2,7,0,0,5,2,0,0,
-2,7,0,0,5,2,0,0,
-2,7,0,0,5,2,0,0};
+1,7,12,4,0,0,0,0, 1,7,12,4,0,0,0,0, 1,7,11,4,0,0,0,0, 1,7,11,4,0,0,0,0, 1,7,9,4,0,0,0,0, 3,3,9,4,8,2,0,0, 
+//Intro,A2,,,,,,,
+6,7,0,0,8,3,4,4,  3,3,9,4,8,2,0,0, 7,7,11,4,8,3,4,4, 2,3,0,0,7,2,0,0, 7,7,11,4,7,3,2,4, 2,3,0,0,7,2,0,0,
+7,7,11,4,7,3,2,4, 2,3,0,0,5,2,0,0, 7,7,12,4,5,3,12,4,2,3,0,0,5,2,0,0, 7,7,12,4,5,3,12,4,3,3,12,4,5,2,0,0,
+7,7,11,4,5,3,12,4,3,3,11,4,5,2,0,0,7,7,9,4,5,3,12,4, 3,3,9,4,8,2,0,0, 6,7,0,0,8,3,4,4,  3,3,12,4,8,2,0,0,
+7,7,2,5,8,3,4,4,  2,3,0,0,7,2,0,0, 7,7,12,4,7,3,2,4, 3,3,11,4,7,2,0,0,7,7,9,4,7,3,2,4,  2,3,0,0,5,2,0,0,
+6,7,0,0,5,3,12,4, 2,3,0,0,5,2,0,0, 7,7,12,4,5,3,12,4,1,7,12,4,0,0,0,0,3,3,12,4,5,2,0,0, 7,7,11,4,5,3,12,4,
+3,3,11,4,5,2,0,0, 6,7,9,4,5,3,12,4,2,3,9,4,8,2,0,0,  6,7,0,0,8,3,4,4, 3,3,12,4,8,2,0,0, 6,7,0,0,8,3,4,4,
+3,3,7,4,7,2,0,0,  6,7,0,0,7,3,2,4, 2,3,0,0,7,2,0,0, 7,7,12,4,7,3,2,4, 3,3,11,4,5,2,0,0, 7,7,9,4,5,3,12,4,
+3,3,11,4,5,2,0,0,7,7,12,4,5,3,12,4,2,3,0,0,5,2,0,0, 6,7,0,0,5,3,12,4, 2,3,0,0,5,2,0,0,  6,7,0,0,5,3,12,4, 
+3,3,12,4,8,2,0,0, 
+//Boucle,A3,,,,,,,
+6,7,0,0,8,3,4,4,  3,3,7,4,8,2,0,0, 7,7,7,4,8,3,4,4,  2,3,0,0,7,2,0,0, 7,7,4,4,7,3,2,4,  3,3,7,4,7,2,0,0,
+7,7,7,4,7,3,2,4,  2,3,0,0,5,2,0,0, 6,7,0,0,5,3,12,4, 2,3,0,0,5,2,0,0, 7,7,12,4,5,3,12,4,3,3,12,4,5,2,0,0,
+7,7,11,4,5,3,12,4,3,3,11,4,5,2,0,0,7,7,9,4,5,3,12,4, 3,3,9,4,8,2,0,0, 
+//Boucle,A2,,,,,,,
+6,7,0,0,8,3,4,4,  3,3,9,4,8,2,0,0, 7,7,11,4,8,3,4,4, 2,3,0,0,7,2,0,0, 7,7,11,4,7,3,2,4, 2,3,0,0,7,2,0,0,
+7,7,11,4,7,3,2,4, 2,3,0,0,5,2,0,0, 7,7,12,4,5,3,12,4,2,3,0,0,5,2,0,0, 7,7,12,4,5,3,12,4,3,3,12,4,5,2,0,0,
+7,7,11,4,5,3,12,4,3,3,11,4,5,2,0,0,7,7,9,4,5,3,12,4, 3,3,9,4,8,2,0,0, 6,7,0,0,8,3,4,4,  3,3,12,4,8,2,0,0,
+7,7,2,5,8,3,4,4,  2,3,0,0,7,2,0,0, 7,7,12,4,7,3,2,4, 3,3,11,4,7,2,0,0,7,7,9,4,7,3,2,4,  2,3,0,0,5,2,0,0,
+6,7,0,0,5,3,12,4, 2,3,0,0,5,2,0,0, 7,7,12,4,5,3,12,4,1,7,12,4,0,0,0,0,3,3,12,4,5,2,0,0, 7,7,11,4,5,3,12,4,
+3,3,11,4,5,2,0,0, 6,7,9,4,5,3,12,4,2,3,9,4,8,2,0,0,  6,7,0,0,8,3,4,4, 3,3,12,4,8,2,0,0, 6,7,0,0,8,3,4,4,
+3,3,7,4,7,2,0,0,  6,7,0,0,7,3,2,4, 2,3,0,0,7,2,0,0,  7,7,12,4,7,3,2,4,3,3,11,4,5,2,0,0, 7,7,9,4,5,3,12,4,
+3,3,11,4,5,2,0,0, 7,7,12,4,5,3,12,4,2,3,0,0,5,2,0,0, 6,7,0,0,5,3,12,4,2,3,0,0,5,2,0,0, 6,7,0,0,5,3,12,4, 
+//Fin,A4,,,,,,,
+3,3,2,5,8,2,0,0,  6,7,0,0,8,3,4,4, 3,3,7,4,8,2,0,0,  7,7,7,4,8,3,4,4, 2,3,0,0,7,2,0,0,  7,7,4,4,7,3,2,4,
+3,3,7,4,7,2,0,0,  7,7,7,4,7,3,2,4, 3,3,5,4,5,2,0,0,  6,7,0,0,5,3,12,4,3,3,4,5,5,2,0,0,  6,7,0,0,5,3,12,4,
+3,3,2,5,5,2,0,0,  1,7,9,4,0,0,0,0, 2,7,0,0,5,2,0,0,  2,7,0,0,5,2,0,0, 2,7,0,0,5,2,0,0};
 
 
 //
@@ -323,13 +241,17 @@ char game_music[] = {
 // 255 = next wave
 // 250 = cat appear on the left (cardir)
 // 251 = cat appear on the right
+// 252 = fireball appear on the left
+// 253 = fireball appear on the right
 // 200-226 = lightning appear and use this code to define x position of lighting (Xpox = code-200 + 7)
 // 180-196 = Life fall 
-// 150-176 = ice fall 
+// 150-176 = ice fall
+
+ 
 // 0x08 or 0x09 must be in hexa don't know why. Its look lika a bug ?!
 unsigned char rain[] = {   //----------------------------------------------|new wave|
 // wave 1  time=3/2      x position (7 left---19 center -- right 31)
-  255,0, 19,2, 32,2, 7,2,	
+  253,3, 250,0, 19,2, 252,0, 32,2, 7,2, 253,0,	
   32,3, 19,3, 07,3,  32,3,  251,0 ,7,3, 16,3, 18,3, 20,3,
   07,3  ,9,3  ,250,0 ,26,3  ,28,3, 251,0,  32,3, 7,3, 250,0, 32,3, 
   15,3  ,17,3, 251,0 ,19,3  ,21,3, 250,0, 23,3, 
@@ -398,15 +320,26 @@ unsigned char redefchar[]={
 00,00,00,00,00,03,47,47, // 117
 00,00,00,00,00,48,61,61, // 118
 00,00,00,00,24,24,56,56, // 119
-01,03,03,07,15,31,31,63, // 120
-32,48,48,56,62,60,60,63, // 121
+04,35,0x9,07,07,0x9,35,04, // 120  fire boulder left 04,34,0x09,07,07,0x09,34,04
+0x08,17,36,56,56,36,17,0x08, // 121  fire boulder right
 62,62,62,62,62,62,62,28, // 122 tile
 03,06,12,31,00,00,00,01, // 123 lightning left
 00,00,00,60,12,24,48,32, // 124 lightning right
-03,02,04,0x08,16,32,00,00// 125 lightning point 3eme caractere redefinit
+03,02,04,0x08,16,32,00,00// 125 lightning head character redefine
 // 126, 127 allready used in them native graphics
 }; 
-// de 34 a 44
+unsigned char catfish[]={
+00,48,11,05,31,39,11,16, // 112 left catfish
+16,49,59,63,62,63,59,33, // 113 left catfish (queue)
+02,35,55,63,31,63,55,33, // 114 right fish
+00,03,52,40,62,57,52,02  // 115 right fish
+};
+unsigned char catcat[]={
+04,28,31,15,03,03,02,06, // 112 right cat  
+01,01,62,60,60,12,38,42, // 113 right cat
+16,16,15,07,07,06,12,10, // 114 left cat
+04,07,63,62,56,24,40,44 // 115 left cat}
+};
 unsigned char redefcharExt[]={
 
 // happy aldo: player les bras en bas 
@@ -429,6 +362,7 @@ void redefine_char()
    for (i=46808;i<46808+sizeof(redefchar)-1;i++)
 	  *(unsigned char*)i=redefchar[j++];
    
+			
 }
 
 // happy ALDO
@@ -488,7 +422,7 @@ void wingame()
   //  the cat come to Aldo
   for (j=3;j<px-3;j++)
   {
-    for (wait=0;i<wait;wait++);
+    for (wait=0;wait<1500;wait++);
 	*(unsigned char*)(0Xbb80+(caty*40)+j-2)=32;
 	*(unsigned char*)(0Xbb80+(caty*40)+j-1)=0;
 	*(unsigned char*)(0Xbb80+(caty*40)+j)=114;
@@ -525,16 +459,17 @@ void wingame()
   }
   poke(0xBB80+608,12); // blink before text
   poke(0xBB80+633,8);  // no blink
+  poke(0xBB80+80+608,12); // blink before text
+  poke(0xBB80+80+633,8);  // no blink
   AdvancedPrint(10,15,"CONGRATULATION ALDO !");
-  // ici faire une musique de victoire
-  // faire un soleil en mode hires ?
+  AdvancedPrint(5,17,"YOU R SURVIVOR OF THIS STORM !");
   
-  // exit(1); for debugging
+  // here play a victory music   ??
+  
   j=0;
 
   for (wait=0;wait<200;wait++)
   {
-      // ici faire briller le soleil ( animation)
 	  // make sun shining
       if (j==10) 
 	  {
@@ -554,9 +489,7 @@ void wingame()
 	  }
 	  kk=key();
 	  if (kk==27)
-	  {
 		 break;
-	  }
   }
 }
 void play_music()
@@ -579,11 +512,11 @@ void play_music()
 	//printf("p1=%d p2=%d o1=%dn1=%d o2=%d n2=%d o3=%d\n",p1,p2,o1,n2,o2,n3,o3);
 	
 	if (n1>0) 
-		music(1,o1,n1,10);
+		music(1,o1,n1,volume);
 	if (n2>0) 
-		music(2,o2,n2,10);
+		music(2,o2,n2,volume);
 	if (n3>0) 
-		music(3,o3,n3,10);		
+		music(3,o3,n3,volume);		
 	
 	music_index+=8;
 	if (music_index>=(sizeof(game_music)-9))
@@ -655,24 +588,29 @@ void redefine_raindrop()
 // player falling by collission with cat or tile
 void player_falling()  
 {
-   char i;
+   
    int time;
+   //colcat=0; // disable cat collision
+   //colfireball=0; // disable fireball collision
+   if (active_sound==1)
+   {
+	  shoot();
+	  music_tempo=3;  
+   }
+	   
    for (i=0;i<5;i++)
    {
-       
+         //manage_cat();
        disp_aldo(px,py+i);
 	   //plot(px,py-1+i,32);
 	   //plot(px+1,py-1+i,32);
 	   //plot(px-1,py-1+i,32);
-	   for (time=0;time<2500;time++);
-	   if (active_sound==1)
-	   {
-	      shoot();
-		 music_tempo=7;  
-	   }
+	   for (time=0;time<2000;time++);
+	   
 	  // must manage bottom screen repaint
+	
 	}
-     display_floor();   // bug dans cette methode voir si pbl de clc ou registre a sauver sur pile ? 
+    display_floor();   // bug dans cette methode voir si pbl de clc ou registre a sauver sur pile ? 
 }
 // others object falling : ice or kernel
 void manage_falling_obj()
@@ -737,21 +675,23 @@ void manage_falling_obj()
 		}		
 	}
 }
-// manage lightning
+// manage lightning 
+// tile_x = lightning x
+//
 void manage_lightning()
 { 
-     if (tile_fall==0)
-	 {
-		if (lightning_dice==1)
+	
+    if (tile_fall==0)
+    {
+		if (lightning==1)
 		{
 		   // afficher foudre
 		   tile_fall=1;
 		
 		   tile_y=ceiling_y-3;
-		 //  tile_y=5;
-		   tile_fall=1;
 		   
 		   lightning_time=12; // temps de durée de l'éclair  
+		   paper(0);
 		   if (active_sound==1)
 		   { 
 			      explode();
@@ -793,7 +733,6 @@ void manage_lightning()
 					*(unsigned char*)(0XBBAA+(40*ly)+tile_x)=32;
 					*(unsigned char*)(0XBBAA+(40*ly)+tile_x+1)=32;
 					*(unsigned char*)(0XBBAA+(40*ly)+tile_x+2)=32;	
-				
 				}
 			}
 			if (ly<def_ceiling_pos)
@@ -804,6 +743,7 @@ void manage_lightning()
 			//*(unsigned char*)(0XBBAA+(40*ly)+tile_x)=109;
 			//*(unsigned char*)(0XBBAA+(40*ly)+tile_x+1)=109;
 		    lightning_time=0;
+			paper(7);
 		}
 	 } 
 	 if (tile_fall==1)  
@@ -814,7 +754,7 @@ void manage_lightning()
 			poke(0XBBAA+(40*tile_y)+tile_x,32);		
 			tile_fall=0; // 	    
 			shoot_tile_time=3; // 4 main program cycles for show color indacte correct catching
-			lightning_dice=0;
+			lightning=0;
 			lightning_time=0;
 			paper(3);
 			if (active_sound==1)
@@ -823,6 +763,7 @@ void manage_lightning()
 				music_tempo=7;
 			}
 			being_falling=1;
+		
 			player_falling();
 			being_falling=0;
 			life--;
@@ -840,7 +781,7 @@ void manage_lightning()
 		}
 		else
 		{
-			lightning_dice=0;
+			lightning=0;
 		    // display falling tile
 			tile_fall=0;
 			poke(0XBBAA+(40*tile_y)+tile_x,32);	  
@@ -977,17 +918,37 @@ void house_shaking()
 
 void manage_cat()
 {
-	unsigned int wait;	
-	if (cat==0) //si pas de présence du cat générer une valeur aléatoire pour savoir s'il apparait
-	{
-		//seecat=rand()/(32768/10);
+	#ifdef DEBUG
+	gotoxy(30,0);printf("WAT=%d",waterlevel);	
+	#endif
 	
+	if (cat==0) 
+	{
+		j=0;
+		
+		 if (waterlevel>0)
+		 {  // catfish apparence
+		    for (i=46976;i<46976+32;i++)
+			*(unsigned char*)i=catfish[j++];
+		
+		 }
+		 else
+		 {  // cat apparence
+			for (i=46976;i<46976+32;i++)
+			*(unsigned char*)i=catcat[j++];
+		 }
+		 
 		 if (seecat==1) //Apparait à gauche
 		 { 
    		     catx=3;
 			 cat=1;
 			 dircat=0;
 			 catwait=10;
+			 if (active_sound)
+			{
+				SoundEffect(cat_at_door_sound);				
+				music_tempo=2;
+			}
 		 }
 		 if (seecat==2)// apparait à droite
 		 {
@@ -996,12 +957,13 @@ void manage_cat()
 			 cat=1;
 			 dircat=1;
 			 catwait=10;
+			  if (active_sound)
+			{
+				SoundEffect(cat_at_door_sound);				
+				music_tempo=2;
+			}
 		 }
-		 if (active_sound)
-		 {
-			//SoundEffect(cat_at_door_sound);				
-			//music_tempo=2;
-		}
+		 
 	}
 	else // cat ==1 , gérer la présence du cat et son déplacement
 	{
@@ -1034,21 +996,21 @@ void manage_cat()
 			{
 		       catx++;
 			}
-			if (catx==7)  // restore wall
+			if (catx==7)  // restore left zone
 			{
      			*(unsigned char*)(0Xbb80+(caty*40)+1)=4;
 			    *(unsigned char*)(0Xbb80+(caty*40)+2)=109;
 		     	*(unsigned char*)(0Xbb80+(caty*40)+3)=109;
-		    	*(unsigned char*)(0Xbb80+(caty*40)+4)=126|128;
+		    	//*(unsigned char*)(0Xbb80+(caty*40)+4)=126|128;
 			}
-			if (catx==37)  //arrivé du cat à la position 36
+			if (catx==37)  // resore right zone
 			{
 			   // effacement du cat par la pluie et mur
 			  cat=0;
 			 
 			  seecat=0;
 			  *(unsigned char*)(0Xbb80+(caty*40)+catx-3)=4;
-		      *(unsigned char*)(0Xbb80+(caty*40)+catx-2)=126|128;
+		      //*(unsigned char*)(0Xbb80+(caty*40)+catx-2)=126|128;
 			   
 			  *(unsigned char*)(0Xbb80+(caty*40)+catx-1)=109;
 			  *(unsigned char*)(0Xbb80+(caty*40)+catx)=109;
@@ -1080,104 +1042,236 @@ void manage_cat()
 		
 			}
 		 }
-        // gotoxy(30,2);printf("catx=%d ",catx);
-        //gerer la collision du cat avec le héro
-	    if (((catx==px)||(catx+1==px))&&(jump_time<3))
+        // handle cat collision with Aldo
+	    if (((catx==px)||(catx+1==px))&&(jump_time<3)&&(colcattime==0))
 		{
-	
+		
 		   if (active_sound==1)
 		   { 	
 				SoundEffect(cat_collision_sound);				
-				music_tempo=9;
+				music_tempo=3;
+   	       }
+		   if (dircat==1)
+				catx-=2;
+		   if (dircat==2)
+				catx+=3;
+		   paper(3);
+		   ink(7);		  
+		   being_falling=1;
+		   armsdown=1;
+		   player_falling();
+		   armsdown=0;
+		   being_falling=0,
+		   life--;
+		   colcat=1; //enable cat collision
+		   shoot_cat_time=3; // keepn 3 cycle time tp show cyan color paper indicate correct catching
+		   colcattime=27;
+		}
+		if (colcattime>0)
+		colcattime--;
+    }
+}
+void manage_fireball()
+{
+	#ifdef DEBUG
+	gotoxy(30,0);printf("WAT=%d",waterlevel);	
+	#endif
+	
+	if (fireball==0) 
+	{
+		j=0;		 
+		 if (seefireball==1) //Apparait à gauche
+		 { 
+		 	 //tile_x=20;
+		     //lightning_time=12; // temps de durée de l'éclair  
+		   
+   		     fireballx=3;
+			 fireball=1;
+			 dirfireball=0;
+			 fireballwait=10;
+			 if (active_sound)
+			 {
+				explode();				
+				music_tempo=6;
+			 }
+			 lightning=1;
+			 tile_x=20;
+		 }
+		 if (seefireball==2)// apparait à droite
+		 {
+			
+		     fireballx=34;
+			 fireball=1;
+			 dirfireball=1;
+			 fireballwait=10;
+			  if (active_sound)
+			 {
+				explode();				
+				music_tempo=6;
+			 }
+			 lightning=1;
+			 tile_x=20;
+		 }
+	}
+	else // fireball ==1 , gérer la présence du fireball et son déplacement
+	{
+		*(unsigned char*) (0Xbb80+(firebally*40)+fireballx)=120;
+		*(unsigned char*) (0Xbb80+(firebally*40)+fireballx+1)=121;
+		*(unsigned char*) (0Xbb80+(firebally*40)+fireballx-1)=3;
+		*(unsigned char*)(0Xbb80+(firebally*40)+fireballx+2)=32;
+		
+	     if (fireballwait>0) 
+		     fireballwait--;
+		
+	     if (dirfireball==0) // de gauche à droite
+		 {  
+		    if (fireballwait==0)
+			{
+		       fireballx++;
+			}
+			if (fireballx==7)  // restore wall
+			{
+     			*(unsigned char*)(0Xbb80+(firebally*40)+1)=4;
+			    *(unsigned char*)(0Xbb80+(firebally*40)+2)=109;
+		     	*(unsigned char*)(0Xbb80+(firebally*40)+3)=109;
+		    	*(unsigned char*)(0Xbb80+(firebally*40)+4)=126|128;
+			}
+			if (fireballx==37)  //arrived at position 36
+			{
+			  fireball=0;
+			  seefireball=0;
+			  // restore wall
+			  *(unsigned char*)(0Xbb80+(firebally*40)+fireballx-3)=4;
+		      *(unsigned char*)(0Xbb80+(firebally*40)+fireballx-2)=126|128;
+			   
+			  *(unsigned char*)(0Xbb80+(firebally*40)+fireballx-1)=109;
+			  *(unsigned char*)(0Xbb80+(firebally*40)+fireballx)=109;
+			}
+		 } 
+		 if (dirfireball==1) // de droite à gauche
+		 {
+		    if (fireballwait==0)
+		       fireballx--;
+			if (fireballx==31)   
+ 			{
+			    // restore right zone
+			    *(unsigned char*)(0Xbb80+(firebally*40)+34)=4;
+				//*(unsigned char*)(0Xbb80+(firebally*40)+35)=126|128;
+			    *(unsigned char*)(0Xbb80+(firebally*40)+36)=109;
+		     	*(unsigned char*)(0Xbb80+(firebally*40)+37)=109;
+			}
+			if (fireballx==2)  //fireball arrived at position 1
+			{
+				seefireball=0;
+				fireball=0;  
+				// restore left zone
+				*(unsigned char*)(0Xbb80+(firebally*40)+fireballx)=109;
+		     	*(unsigned char*)(0Xbb80+(firebally*40)+fireballx+1)=109;
+		    	//*(unsigned char*)(0Xbb80+(firebally*40)+fireballx+2)=126|128;
+			}
+		 }
+        // handle fireball collision with Aldo
+	    if (((fireballx==px)||(fireballx+1==px))&&(benddown==0)&&(colfireballtime==0))
+		{
+		   
+		   //  faire plutot un benddown_time et pas benddown
+		   
+		   if (active_sound==1)
+		   { 	
+				SoundEffect(cat_collision_sound);				
+				music_tempo=3;
    	       }
 		   paper(3);
 		   ink(7);		  
 		   being_falling=1;
+		   armsdown=1;
 		   player_falling();
+		   armsdown=0;
+		   paper(7);
+		   ink(5);
 		   being_falling=0,
 		   life--;
-		   shoot_cat_time=3; // 4 main program cycles for show color indacte correct catching
-		  
-		   
-		   if (dircat==1)
-		   {
-		      catx--;
-		   }
-		   if (dircat==0)
-		   {
-		     catx++;
-		   }
+		   colfireballtime=27;
+		   benddown=0;        // disable benddown
 		}
+		if (colfireballtime>0)
+			colfireballtime--;
     }
 }
+
 void disp_aldo(char x,char y)
 {
+	unsigned char aldoy;
+	aldoy=y;
+	if (benddown==1)
+		aldoy=y+1;
+
+	// arms up
     if (armsdown==0)
 	{
-    // sceau
-	    *(unsigned char*)(0xbb80+(y*40)+x-1)=91;
-		*(unsigned char*)(0xbb80+(y*40)+x)=92;
-		*(unsigned char*)(0xbb80+(y*40)+x+1)=93;
+		// sceau
+		*(unsigned char*)(0xbb80+(aldoy*40)+x-1)=91;
+		*(unsigned char*)(0xbb80+(aldoy*40)+x)=92;
+		*(unsigned char*)(0xbb80+(aldoy*40)+x+1)=93;
 	// blancs
-	    *(unsigned char*)(0xbb80+(y*40)+x-2)=5;
-		//poke (0xbb80+(y*40)+x-2,5);
-		*(unsigned char*)(0xbb80+(y*40)+x+2)=0;
-	
-		*(unsigned char*)(0xbb80+((y+1)*40)+x-1)=94;
-		*(unsigned char*)(0xbb80+((y+1)*40)+x+1)=96;
+		*(unsigned char*)(0xbb80+(aldoy*40)+x-2)=5;
+		//poke (0xbb80+(aldoy*40)+x-2,5);
+		*(unsigned char*)(0xbb80+(aldoy*40)+x+2)=0;
+		
+		*(unsigned char*)(0xbb80+((aldoy+1)*40)+x-1)=94;
+		*(unsigned char*)(0xbb80+((aldoy+1)*40)+x+1)=96;
 	// blancs
-		*(unsigned char*)(0xbb80+((y+1)*40)+x-2)=1;
-		*(unsigned char*)(0xbb80+((y+1)*40)+x+2)=0;
+		*(unsigned char*)(0xbb80+((aldoy+1)*40)+x-2)=1;
+		*(unsigned char*)(0xbb80+((aldoy+1)*40)+x+2)=0;
 	}
 	else  // arms down Aldo Win
 	{
-	
-	   
-		*(unsigned char*)(0xbb80+((y)*40)+x-1)=0;
-		*(unsigned char*)(0xbb80+((y)*40)+x+1)=0;
-	    *(unsigned char*)(0xbb80+(y*40)+x-2)=5;
+		*(unsigned char*)(0xbb80+((aldoy)*40)+x-1)=0;
+		*(unsigned char*)(0xbb80+((aldoy)*40)+x+1)=0;
+	    *(unsigned char*)(0xbb80+(aldoy*40)+x-2)=5;
 		
-		*(unsigned char*)(0xbb80+(y*40)+x)=34;
-		*(unsigned char*)(0xbb80+(y*40)+x-2)=5;
-		*(unsigned char*)(0xbb80+(y*40)+x+2)=0;
-	    *(unsigned char*)(0xbb80+((y+1)*40)+x-1)=35;
-		*(unsigned char*)(0xbb80+((y+1)*40)+x)=95;
-		*(unsigned char*)(0xbb80+((y+1)*40)+x+1)=36;
-		*(unsigned char*)(0xbb80+((y+1)*40)+x-2)=1;
-		*(unsigned char*)(0xbb80+((y+1)*40)+x+2)=0;
+		*(unsigned char*)(0xbb80+(aldoy*40)+x)=34;
+		*(unsigned char*)(0xbb80+(aldoy*40)+x-2)=5;
+		*(unsigned char*)(0xbb80+(aldoy*40)+x+2)=0;
+	    *(unsigned char*)(0xbb80+((aldoy+1)*40)+x-1)=35;
+		*(unsigned char*)(0xbb80+((aldoy+1)*40)+x)=95;
+		*(unsigned char*)(0xbb80+((aldoy+1)*40)+x+1)=36;
+		*(unsigned char*)(0xbb80+((aldoy+1)*40)+x-2)=1;
+		*(unsigned char*)(0xbb80+((aldoy+1)*40)+x+2)=0;
 	}
 	
-    // tete
-    if (player_wait>100)  
-		*(unsigned char*)(0xbb80+((y+1)*40)+x)=106;
-	else  // close eyes after 100 cycle
+    // head smile after 100 loop
+
+	if (player_wait>64)  
+		*(unsigned char*)(0xbb80+((aldoy+1)*40)+x)=106;
+	else  // close eyes after 100 main loop cycle
 	{	
-		*(unsigned char*)(0xbb80+((y+1)*40)+x)=95;	
+		*(unsigned char*)(0xbb80+((aldoy+1)*40)+x)=95;	
 	}
 
     if (armsdown==0)
 	{
-		if (jump_time<3)
+		if (jump_time<2&&benddown==0)
 		{
 		// ventre en mode non saut	
-			*(unsigned char*)(0xbb80+((y+2)*40)+x-1)=97;
-			*(unsigned char*)(0xbb80+((y+2)*40)+x)=98;
-			*(unsigned char*)(0xbb80+((y+2)*40)+x+1)=32;		
-			*(unsigned char*)(0xbb80+((y+2)*40)+x-2)=1;	
-			*(unsigned char*)(0xbb80+((y+2)*40)+x+2)=0;
+			*(unsigned char*)(0xbb80+((aldoy+2)*40)+x-1)=97;
+			*(unsigned char*)(0xbb80+((aldoy+2)*40)+x)=98;
+			*(unsigned char*)(0xbb80+((aldoy+2)*40)+x+1)=32;		
+			*(unsigned char*)(0xbb80+((aldoy+2)*40)+x-2)=1;	
+			*(unsigned char*)(0xbb80+((aldoy+2)*40)+x+2)=0;
 		}
 		else // ventre en mode saut
 		{
-			*(unsigned char*)(0xbb80+((y+2)*40)+x)=98;
+			*(unsigned char*)(0xbb80+((aldoy+2)*40)+x)=98;
 		}
 	}
-	else
+	else // arms up
 	{
-	    *(unsigned char*)(0xbb80+((y+2)*40)+x-2)=1;
-	    *(unsigned char*)(0xbb80+((y+2)*40)+x-1)=37;
-		*(unsigned char*)(0xbb80+((y+2)*40)+x+1)=38;
-		*(unsigned char*)(0xbb80+((y+2)*40)+x)=98;
-		*(unsigned char*)(0xbb80+((y+2)*40)+x+2)=0;
+	    *(unsigned char*)(0xbb80+((aldoy+2)*40)+x-2)=1;
+	    *(unsigned char*)(0xbb80+((aldoy+2)*40)+x-1)=37;
+		*(unsigned char*)(0xbb80+((aldoy+2)*40)+x+1)=38;
+		*(unsigned char*)(0xbb80+((aldoy+2)*40)+x)=98;
+		*(unsigned char*)(0xbb80+((aldoy+2)*40)+x+2)=0;
 	}
     // blancs
 //	poke (0xbb80+((y+2)*40)+x-2,0);
@@ -1185,98 +1279,90 @@ void disp_aldo(char x,char y)
     // blancs pour effacer les jambes du saut
 //	poke (0xbb80+((y+2)*40)+x-3,0);
 //	poke (0xbb80+((y+2)*40)+x+3,0);
-
+	
     // getion du saut pour mettre les jambes en l'air
-    if (jump_time>2)  // >0
+	// legs up
+	if (legsup==1)
 	{
 	    // mettre les jambes sur les cotés 2xcar de chaque coté
-		*(unsigned char*)(0xbb80+((y+2)*40)+x-1)=117;
-		*(unsigned char*)(0xbb80+((y+2)*40)+x-2)=116;
+		*(unsigned char*)(0xbb80+((aldoy+2)*40)+x-1)=117;
+		*(unsigned char*)(0xbb80+((aldoy+2)*40)+x-2)=116;
         if (px<6)  // redessine le mur à gauche
 	    {
-	        *(unsigned char*)(0xbb80+((y+2)*40)+x-3)=126;
+	        *(unsigned char*)(0xbb80+((aldoy+2)*40)+x-3)=126;
 	    }
 	    else
 	    {
-	       *(unsigned char*)(0xbb80+((y+2)*40)+x-3)=2;
+	       *(unsigned char*)(0xbb80+((aldoy+2)*40)+x-3)=2;
 		}
-		//poke (0xbb80+((y+2)*40)+x,127);
-		*(unsigned char*)(0xbb80+((y+2)*40)+x+1)=118;   
-     	*(unsigned char*)(0xbb80+((y+2)*40)+x+2)=119; 
+		//poke (0xbb80+((aldoy+2)*40)+x,127);
+		*(unsigned char*)(0xbb80+((aldoy+2)*40)+x+1)=118;   
+     	*(unsigned char*)(0xbb80+((aldoy+2)*40)+x+2)=119; 
 		
-		if (px>31)  // redessine le mur à gauche
-	    {
-			*(unsigned char*)(0xbb80+((y+2)*40)+x+3)=126;  		
-		}
-		else
-		{
-			*(unsigned char*)(0xbb80+((y+2)*40)+x+3)=0;
-		}
-		if (jump_time==jump_max_time) // pour n'r qu'un fois les jambes du bas
+		if (px<32)  // redessine le mur à gauche
+			*(unsigned char*)(0xbb80+((aldoy+2)*40)+x+3)=0;
+		
+		
+		if (jump_time==jump_max_time&&benddown==0) 
 		{
 			// blancs à la place des jambes du bas
-			*(unsigned char*)(0xbb80+((y+3)*40)+x-1)=32;
-			*(unsigned char*)(0xbb80+((y+3)*40)+x)=32;
-			*(unsigned char*)(0xbb80+((y+3)*40)+x+1)=32;
+			*(unsigned char*)(0xbb80+((aldoy+3)*40)+x-1)=32;
+			*(unsigned char*)(0xbb80+((aldoy+3)*40)+x)=32;
+			*(unsigned char*)(0xbb80+((aldoy+3)*40)+x+1)=32;
 		}
-
 	}
 	else // manage legs on ground 
 	{
-		
 		if (walking==1)  // walking mode
 		{
-			
-			*(unsigned char*)(0xbb80+((y+3)*40)+x-1)=100;
-			*(unsigned char*)(0xbb80+((y+3)*40)+x)=101;
-			*(unsigned char*)(0xbb80+((y+3)*40)+x+1)=102;
+			*(unsigned char*)(0xbb80+((aldoy+3)*40)+x-1)=100;
+			*(unsigned char*)(0xbb80+((aldoy+3)*40)+x)=101;
+			*(unsigned char*)(0xbb80+((aldoy+3)*40)+x+1)=102;
 		}
 		else
 		{
-			*(unsigned char*)(0xbb80+((y+3)*40)+x-1)=103;
-			*(unsigned char*)(0xbb80+((y+3)*40)+x)=104;
-			*(unsigned char*)(0xbb80+((y+3)*40)+x+1)=105;
+			*(unsigned char*)(0xbb80+((aldoy+3)*40)+x-1)=103;
+			*(unsigned char*)(0xbb80+((aldoy+3)*40)+x)=104;
+			*(unsigned char*)(0xbb80+((aldoy+3)*40)+x+1)=105;
 		}
-		if ((px<8)&&(endgame==0)) // redraw wall on the left
-		{
-			*(unsigned char*)(0xbb80+((py+2)*40)+px-2)=4; 
-			*(unsigned char*)(0xbb80+((py+2)*40)+px-3)=126|128; 
-			
-		}
-		else
-		{
-			*(unsigned char*)(0xbb80+((y+2)*40)+x-3)=32;
-		}
+		if ((px>7)&&(endgame==0)) // redraw wall on the left
+			*(unsigned char*)(0xbb80+((aldoy+2)*40)+x-3)=32;
+	
 		
 		if ((px>30)&&(endgame==0)) // redraw wall on the right
 		{
-				*(unsigned char*)(0xbb80+((py+3)*40)+34)=4;
-				*(unsigned char*)(0xbb80+((py+3)*40)+35)=126|128; 
-		 		*(unsigned char*)(0xbb80+((py+2)*40)+34)=4;
-			  	*(unsigned char*)(0xbb80+((py+2)*40)+35)=126|128; 
-				*(unsigned char*)(0xbb80+((py+1)*40)+34)=4;
-				*(unsigned char*)(0xbb80+((py+1)*40)+35)=126|128; 
-				*(unsigned char*)(0xbb80+((py)*40)+34)=4;
-				*(unsigned char*)(0xbb80+((py)*40)+35)=126|128; 
+				*(unsigned char*)(0xbb80+((aldoy+3)*40)+34)=4;
+				*(unsigned char*)(0xbb80+((aldoy+3)*40)+35)=126|128; 
+		 		*(unsigned char*)(0xbb80+((aldoy+2)*40)+34)=4;
+			  	*(unsigned char*)(0xbb80+((aldoy+2)*40)+35)=126|128; 
+				*(unsigned char*)(0xbb80+((aldoy+1)*40)+34)=4;
+				*(unsigned char*)(0xbb80+((aldoy+1)*40)+35)=126|128; 
+				*(unsigned char*)(0xbb80+((aldoy)*40)+34)=4;
+				*(unsigned char*)(0xbb80+((aldoy)*40)+35)=126|128; 
 		}
 		else
 		{
-			*(unsigned char*)(0xbb80+((y+2)*40)+x+3)=32; 
+			*(unsigned char*)(0xbb80+((aldoy+2)*40)+x+3)=32; 
 		}
 	}
-	// blank char next the legs
-	*(unsigned char*)(0xbb80+((y+3)*40)+x-2)=2;
-	*(unsigned char*)(0xbb80+((y+3)*40)+x+2)=0;
+	if (benddown==0)
+	{
+		// blank char next the legs
+		*(unsigned char*)(0xbb80+((aldoy+3)*40)+x-2)=2;
+		*(unsigned char*)(0xbb80+((aldoy+3)*40)+x+2)=0;
+	}
+	
     if (being_falling==1)
 	{
-		*(unsigned char*)(0xbb80+((y-1)*40)+x-1)=32;
-		*(unsigned char*)(0xbb80+((y-1)*40)+x)=32;
-        *(unsigned char*)(0xbb80+((y-1)*40)+x+1)=32;
+		*(unsigned char*)(0xbb80+((aldoy-1)*40)+x-1)=32;
+		*(unsigned char*)(0xbb80+((aldoy-1)*40)+x)=32;
+        *(unsigned char*)(0xbb80+((aldoy-1)*40)+x+1)=32;
 	}
+	
 }
 void display_score()
 {
-   sprintf(0xBB80+(40*26)+20,"\23\4DROP \27\1%d\27\5",score);   	
+   sprintf(0xBB80+(40*26)+20,"\23\4DROPS \27\1%d\27\5",score);   	
   
 }
 
@@ -1285,6 +1371,7 @@ void display_score()
 
 void manage_rain()
 {
+
 //	if (raindroptime>0)
 //	   raindroptime--; // espace de temps entre les gouttes: temps en therme de cycle
 	//gotoxy(5,5);printf("TIME=%d  ",raindroptime);
@@ -1324,7 +1411,7 @@ void manage_rain()
 				{
 					tile_x=codedrop-200;
 				    // get codedrop for X position of lightening
-					lightning_dice=1;
+					lightning=1;
 				}
 				// kernel (life) 180-196 
 				if (codedrop>179&&codedrop<197)
@@ -1354,6 +1441,17 @@ void manage_rain()
 					if (seecat==0)
 						seecat=2;
 				}
+				if (codedrop==252)
+				{
+					if (seefireball==0)
+						seefireball=1;
+				}
+				if (codedrop==253)
+				{
+					if (seefireball==0)
+						seefireball=2;
+				}
+				
 				// new wave of drops, ceiling fall one step
 				if (codedrop==255)  // si la position de x=255 c'est une nouvelle vague de gouttes
 				{
@@ -1409,7 +1507,7 @@ void manage_rain()
 			// player catch a rain drop
 			// prendre en compte le altchar pour le y
 			if ((px==raindropx[rdindex])&&
-			   ((py-2<raindropy[rdindex])&&(py+1>raindropy[rdindex])))
+			   ((py-2+benddown<raindropy[rdindex])&&(py+1+benddown>raindropy[rdindex])))
 			{
 				score++;
 				drop_catch_time=2; //  main program 4 cycles for show color that indacate correct catching
@@ -1424,7 +1522,7 @@ void manage_rain()
 				if (active_sound==1)
 				{
 					SoundEffect(bong_sound);
-					music_tempo=7;							
+					music_tempo=2;							
 				}
 			}
 		}
@@ -1565,6 +1663,7 @@ void manage_rain()
 			} //end for (rdindex=0
 		}  
    } // end of else of if (drop_sliding==0)
+
 }
 void display_outside()
 {
@@ -1683,36 +1782,54 @@ void display_ceiling()
 
 	poke(0xBB80+5+((ceiling_y+1)*40),1|128); //red color for ceiling tile
 	poke(0xBB80+34+((ceiling_y+1)*40),4|128); //blue color for ceiling tile
-   
-
 }
 	
 display_left_wall()
 {
-	xwall=0x98+4;		
-	
-	asm("lda #$BC;"
-		"sta write_wall+2;"
-		"lda %xwall;" // +murx=x +4 en partant de la gauche
-		"sta write_wall+1;"
-		"ldy #18;"	// wall height			
-	"suite_wall;"
-		"clc;"
-		"lda #126;"
-		"ora #128;" // inverted color
-		"write_wall;"
-		"sta $1234;"
-		"lda write_wall+1;"
-		"adc #40;"
-		"bcc saut_wall;"
-			"inc write_wall+2;"
-		"saut_wall;"	
-		"sta write_wall+1;"
-		"clc;"
-		"dey;"				
-		"bne suite_wall;"
-	);
+    
+	asm("lda #254;"
+		"sta $BB80+(7*40)+4;"
+		"sta $BB80+(8*40)+4;"
+		"sta $BB80+(9*40)+4;"
+		"sta $BB80+(10*40)+4;"
+		"sta $BB80+(11*40)+4;"
+		"sta $BB80+(12*40)+4;"
+		"sta $BB80+(13*40)+4;"
+		"sta $BB80+(14*40)+4;"
+		"sta $BB80+(15*40)+4;"
+		"sta $BB80+(16*40)+4;"
+		"sta $BB80+(17*40)+4;"
+		"sta $BB80+(18*40)+4;"
+		"sta $BB80+(19*40)+4;"
+		"sta $BB80+(20*40)+4;"
+		"sta $BB80+(21*40)+4;"
+		"sta $BB80+(22*40)+4;"
+		"sta $BB80+(23*40)+4;"
+		);
 }
+display_right_wall()
+{
+	asm("lda #254;"
+		"sta $BB80+(7*40)+35;"
+		"sta $BB80+(8*40)+35;"
+		"sta $BB80+(9*40)+35;"
+		"sta $BB80+(10*40)+35;"
+		"sta $BB80+(11*40)+35;"
+		"sta $BB80+(12*40)+35;"
+		"sta $BB80+(13*40)+35;"
+		"sta $BB80+(14*40)+35;"
+		"sta $BB80+(15*40)+35;"
+		"sta $BB80+(16*40)+35;"
+		"sta $BB80+(17*40)+35;"
+		"sta $BB80+(18*40)+35;"
+		"sta $BB80+(19*40)+35;"
+		"sta $BB80+(20*40)+35;"
+		"sta $BB80+(21*40)+35;"
+		"sta $BB80+(22*40)+35;"
+		"sta $BB80+(23*40)+35;"
+		);
+}
+
 color_inverse_menu()
 {		
 	asm("lda #$BB;"
@@ -1760,46 +1877,10 @@ color_inverse_menu()
 			"dey;"				
 		"bne suite_y;");
 }
-/*
- if (peek(i)==32)
-	       *(unsigned char*)i=122|128;
-	   if (peek(i)==33)
-	       *(unsigned char*)i=32|128;
-*/	 
-
-
-
-display_right_wall()
-{
-	xwall=0x98+35;		
-	asm("lda #$BC;"
-		"sta write_wall2+2;"
-		"lda %xwall;" // +murx=x +4 en partant de la gauche
-		"sta write_wall2+1;"
-		"ldy #18;"				
-	"suite_wall2;"
-		"clc;"
-		"lda #126;"
-		"ora #128;"   // inverted color
-		"write_wall2;"
-		"sta $1234;"
-		"lda write_wall2+1;"
-		"adc #40;"
-		"bcc saut_wall2;"
-			"inc write_wall2+2;"
-		"saut_wall2;"	
-		"sta write_wall2+1;"
-		"clc;"
-		"dey;"				
-		"bne suite_wall2;"
-	);
-}
  
 void display_house()
 {
 	display_ceiling();
-	display_left_wall();
-	display_right_wall();  	
 }			
 
 void main_game_loop()
@@ -1812,11 +1893,26 @@ void main_game_loop()
 	
 	do 
 	{
-		//walking=0; // etat des jambes normal
+		#if def DEBUG
+		timer1=deek(0x276);
+		#endif
 	
-		drop_sliding_outside();   
+		//poke(782,64); disabled Interruptions Keyboard Wait Timer 
+        
+		drop_sliding_outside();
+		disp_aldo(px,py);
+		// display the cat
+		manage_lightning();
+		manage_falling_obj();				
+		manage_cat(); 
+		manage_fireball(); 
+		manage_rain();
+		display_right_wall();
+		display_left_wall();
+		// display Aldo
+				
+		//poke(782,192);
 	
-		manage_rain();	
 	
 		// water flood level
 		for (i=23;i>23-waterlevel;i--)
@@ -1891,14 +1987,11 @@ void main_game_loop()
 		//    wined(); // test la fin
 		//	break;
 		//	}
-	
-		manage_lightning();
-		manage_falling_obj();		
-	
+
 
 		if (game_timer>1)
 		   k=key();
-		
+		  
 		if (walking==1)
 			if (walking_alt==0)
 			{
@@ -1911,16 +2004,9 @@ void main_game_loop()
 			   walking_alt=0;
 			}
 		// gotoxy(2,0);printf("IDX=%d CODE=%d TIME=%d  "  ,index_raindrop/2,codedrop,raindroptime);
-		sprintf(0xBB80+2,"IDX=%d"  ,index_raindrop/2);
-        // saut à utiliser quand le cat passe
+		//sprintf(0xBB80+2,"IDX=%d"  ,index_raindrop/2);
+
 		
-		disp_aldo(px,py);
-		
-		
-		//if (game_timer>132)  //  cat appear
-		{
-	     	manage_cat(); //
-		}
 		// manage jumping timer
 		if (jump_time>0) 
 		{
@@ -1929,35 +2015,98 @@ void main_game_loop()
 		   {
 			  if (active_sound)			  
 		         SoundEffect(player_fallout_sound);
-			  
+			
+			  legsup=0;
 		   }
 		   wait=0;
 		}
-		// space key pressed
+		if (standuptime>0)
+		standuptime--;
+		//gotoxy(2,25);printf("lastk=%d",lastk);
+		// <space> key pressed
 		if (jump_time==0)
-		{
-			if ((k==32)||(k==11))
+		{	
+			// KEY UP OR <SPACE>
+			if ((k==32)||(k==11)) // keys 'space" or <up arrow>
 			{
-				jump_time=jump_max_time; 
-				wait=0;
-				if (active_sound)			  
-		        SoundEffect(player_jump_sound);
-				
+				if (benddown==1) // stand up from ground
+				{
+					standuptime=4;  // 4 game loop cycle
+					
+					legsup=0;
+					benddown=0;	
+					jump_time=0;
+					wait=0; // cancel the pause
+					// have to clear key buffer
+					//poke(0x24E,10);
+				}
+				else		// else jump
+				{
+					if (standuptime==0)
+					{
+						jump_time=jump_max_time; 
+						wait=0;
+						if (active_sound)
+						{				
+							SoundEffect(player_jump_sound);
+							music_tempo=2;
+						}
+						legsup=1;
+					}
+				}
 			}
         }
-		
-		// right key pressed
+		# KEY DOWN : Adlo benddown     key = <down arrow>
+		if ((k==10)&&(benddown==0)&&(jump_time==0))
+		{	
+			benddown=1;
+			legsup=1;
+			// faire uniqement benddown_time=1 au lieu de zero c'est tout
+			// pour que Aldo reste au sol tant qu'il ne faut pas de jump ou fleche du haut
+			
+			// clear head zone
+			gotoxy(px-1,py);printf("   ");
+		}
+	
+		//if (benddown_time>0)
+		//	benddown_time--;	
+		#ifdef DEBUG
+		if  (benddown==1)
+		{
+			gotoxy(25,0);printf("STOOP");
+		}
+		else
+		{
+			gotoxy(25,0);printf("     ");
+		}
+		#endif
+	
+		// RIGHT key pressed   'P' or <right arrow>
         if((k==9 || k=='P')&&(px<32)&&(jump_time==0))
 		{
+			if (benddown==1)
+			{
+				benddown=0;
+				legsup=0;
+				// clear left foot
+				*(unsigned char*)(0xbb80+((py+3)*40)+px-2)=32;
+			}
 		    walking=1; // legs in walking mode
 	     	px+=1;
 			wait=0;
         }		
-		// left key pressed
+		// LEFT key pressed 'O' or <left arrow>
         if((k==  8 || k=='O')&&(px>7)&&(jump_time==0))
 		{
-		    walking=1; // legs in walking mode
+		    if (benddown==1)
+			{
+				benddown=0;
+				legsup=0;
+				// clear right foot
+				*(unsigned char*)(0xbb80+((py+3)*40)+px+2)=32;
+			}
 			
+			walking=1; // legs in walking mode
 			px+=-1;
 			wait=0;
 	    }
@@ -1968,12 +2117,18 @@ void main_game_loop()
 		//    goto fin;
 			endgame=1;
 		}
-		if (k==83) // touche 'S'
+		if (k==76) //'l' throw a lightning
+		{
+			tile_x=22;
+			lightning=1;
+		}
+		if (k==83&&lastk!=83) // touche 'S'
 		{			    
 			if (active_sound==1)
 			{
 				active_sound=0;
 				gotoxy(15,0);printf("SOUND OFF");
+				SoundEffect(silence_sound);
 			}
 			else
 			{
@@ -1983,56 +2138,54 @@ void main_game_loop()
 			for(i=0;i<15000;i++);				
 			gotoxy(15,0);printf("         ");
 		}
-		if (k==59) // touche 'M'
+		if (k==59&&lastk!=59) // touche 'M'
 		{		
 			if (active_music==1)
 			{
 				active_music=0;
 				gotoxy(15,0);printf("MUSIC OFF");
+			    SoundEffect(silence_sound);
 			}
 			else
 			{
+				
 				active_music=1;
 				gotoxy(15,0);printf("MUSIC ON");
+				music_tempo=0;
 			}
 			for(i=0;i<15000;i++);				
 			gotoxy(15,0);printf("         ");
-		}
-		if (k==88) // Pause 'X'		
-		{
-		    for(i=0;i<5000;i++);
-		/*
-		    do
-			{
-			   k2=key();
-			}
-			while(k2!=87);
-			*/
-		}
-		
-		if(k==87)  // 'W' win game!
-		{
-		    
 			
 		}
+
+		#ifdef DEBUG
 		if(k==68)  // 'D' direct to method for debugging
 		{
 		    endgame=2;
 			armsdown=1;
+			SoundEffect(silence_sound);
 		    wingame();   
 			k=0;	
+			return;
 		}
-		if(k==127)  // game pause
+		#endif
+		if(k==127)  // <back space> game pause
 		{
+		    SoundEffect(silence_sound);
+		    sprintf(0xBB80+(40*14)+18,"PAUSE");
 		    do
 		    {
-		   
 				k=key();
+				drop_sliding_outside();   
+				for(wait=0;wait<600;wait++);
 			}
-			while(k!=0);
-			
+			while(k==127||k==0);
+			k=0;
+			sprintf(0xBB80+(40*14)+18,"       ");
 		}
-		if(k==49)  // just for debugging
+		
+		#ifdef DEBUG
+		if(k==49)  // do end game
 		{
 		  endgame=2;
 		}
@@ -2062,6 +2215,7 @@ void main_game_loop()
 			
 			display_wave_level_timer=30; // durée d'affichage du numero de la vague suivante
 		}
+		#endif
 		if (k==0) // player do nothing
 		{
 			player_wait++;  // wait sans rien faire;
@@ -2071,14 +2225,12 @@ void main_game_loop()
 		{
 			player_wait=0.;
 		}
-	    if (k==10) // down arrow only to devlopper
-		{
-			// if not read over the array and wait for drop_sliding==0
-		    if (index_raindrop<sizeof(rain)-1&&drop_sliding==0)
-			index_raindrop+=2;
-		}
+
+		#ifdef DEBUG
 		if (k==78) // 'N' next wave only to devlopper
 		{
+		
+			
 			drop_sliding==0;
 			while ((rain[index_raindrop]!=255)&&(index_raindrop<sizeof(rain)-1))
 			{
@@ -2088,6 +2240,7 @@ void main_game_loop()
 			
 			k=0;
 		}
+		#endif
 		if (endgame==2)  // win the game
  		{
 			SoundEffect(silence_sound);
@@ -2102,31 +2255,25 @@ void main_game_loop()
 		
 		// display life state :-/
 		
-		if (life==0)
-		{
-			poke(0xBF93,32);
-			poke(0xBF95,32);
-			poke(0xBF97,32);
-			
-		}			
-		if (life==1)
-		{
+	
+		if (life>=1)
 			poke(0xBF93,111 | 128);
-			poke(0xBF95,32);
-			poke(0xBF97,32);
-		}
-		if (life==2)
-		{
-			poke(0xBF93,111|128);
+
+		if (life>=2)
 			poke(0xBF95,111|128);
-			poke(0xBF97,32);
-		}
-		if (life==3)
-		{
-			poke(0xBF93,111|128);
-			poke(0xBF95,111|128);
+
+		if (life>=3)
 			poke(0xBF97,111|128);
-		}					
+		
+		if (life>=4)
+			poke(0xBF99,111|128);
+		
+	
+		if (life==0)  // loose Game
+			endgame=1;
+		
+		
+			
 		// wave display
 		if (display_wave_level_timer>0)
 		{
@@ -2137,10 +2284,17 @@ void main_game_loop()
 			}
 		    display_wave_level_timer--;
 		}
+	
+			
 		game_timer++; // compteur de temps dans le jeu utile pour plusieurs raisons, nottemment déclenchement vagues de gouttages
  		display_score();
-	
-	} while(endgame==0); 
+		lastk=k;  // save last key pressed
+		#ifdef DEBUG
+		timer2=deek(0x276);
+		sprintf(0xBB80+10,"DELAY:%d  ",(timer1-timer2));
+		#endif
+	} while(endgame==0);
+	SoundEffect(silence_sound);	
     poke(0x24E,10);	
 }
 
@@ -2154,6 +2308,7 @@ void init_default_var()
 	px=18;						// position X du joueur
 	py=20;						// position Y du joueur
 	armsdown=0;					// arms down =1
+	legsup=0;					// to jump & benddown
 	score=0;					// score du joueur
 	walking=0;					// indicateur de walking du joueur ( non static)
     walking_alt=0;				// to change legs char to walking
@@ -2164,22 +2319,35 @@ void init_default_var()
     cat=0; 						// pour savoir si le cat est prensent ou pas
 	seecat=0;
 	
-    jump_time=0; 				// pas d'etat de saut par defaut . indicateur de saut du joueur, si en état de saut 
-
-    index_raindrop=0*2; 			// ****** must be pair. se positionner au début du tableau des positions et timing des gouttes
-	drop_catch_time=0;
+	fireballx=0;                // x fireball position 
+	firebally=20;               // y fireball position 
+	fireball=0;                 // pour savoir si le fireball est prensent ou pas
+	dirfireball=0;              // direction du fireball
+	fireballwait=0;             // delai du fireball qui reste sur place avant de partir
+	colcattime=0;
+	
+	seefireball=0;
+    colfireballtime=0;
+	
+	jump_time=0; 				// pas d'etat de saut par defaut . indicateur de saut du joueur, si en état de saut 
+	benddown=0;
+	standuptime=0;
+	
+    index_raindrop=0*2; 	    // ****** must be pair. se positionner au début du tableau des positions et timing des gouttes
+	drop_catch_time=0;          //  
     shoot_cat_time=0;
+	colcat=1;					// enable cat collision
     shoot_tile_time=0;
 	game_timer=0;
 
-	life=3;                     // nombre de life du personnage
+	life=13;                    // nombre de life du personnage normal : 3
     tile_fall=0;  				// tuile non active par défaut
 	tile_x=0;					// x tile position
 	tile_y=0;					// y tile position
 	obj_kernel=0;
     obj_ice=0;
 	obj_y=0;
-	lightning_dice=0;			// random lightning appear
+	lightning=0;	      		//        lightning appear
 	lightning_time=0;			// lightning appear duration
     
 	k=0;						// k = key(); contient la touche enfoncée
@@ -2187,19 +2355,20 @@ void init_default_var()
 
 	music_index=0;
 	music_tempo=music_tempo_delay;
+	volume=7;
 
 	active_sound=1;
 	active_music=1;
 	rdindex=0;					// index initialize
-	display_wave_level_timer=0;
+	display_wave_level_timer=0; // used to display the wave level
 	being_falling=0;
 	altchar=1;					// used to alternate between 2 drop character
 	drop_sliding=0;
 	scroll_text=0;
 	scroll_text_time=0;
-	scroll_timer=0;
 
     wave_nbr=0;				    // numéro de vague de gouttes en cours . vague de goutte=niveau
+
 	// redef drop
 	redefine_raindrop();
 	
@@ -2239,7 +2408,7 @@ display_menu()
 	
     AdvancedPrint(0,0,"                                        ");
 	AdvancedPrint(2,1,"                                      ");
-	// efface le fond
+	// clear background
 	for (i=16;i<28;i++)
 	{
 		AdvancedPrint(2,i,"mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm");
@@ -2263,45 +2432,28 @@ display_menu()
 	AdvancedPrint(2,15,"mm! !!!mmm! !!!! m! mm!  m! m! mmmm mm");
 	AdvancedPrint(2,16,"mm! mmmmmm! mmm! m! mmm! m! mm!    mmm");
 	AdvancedPrint(2,17,"mm!mmmmmmm!mmmm!mm!mmmm!mm!mmmm!!!mmmm");
-	AdvancedPrint(8,21,"\23\4DIRECTION : ARROWS KEY\4\26");
-	AdvancedPrint(4,23,"\23\4<- LEFT RIGHT -> SPACE TO JUMP\4\26");
+	AdvancedPrint(6,21,"\23\4DIRECTION : ARROWS KEY < > \4\26");
+	AdvancedPrint(13,23,"\23\4SPACE TO JUMP\4\26");
 	AdvancedPrint(10,25,"\23\4PRESS SPACE TO PLAY\4\26");
     // text color   // 12 = blink
+
+	color_inverse_menu();
 	
-    //AdvancedPrint(6,25," S TO ACTIVATE SOUND - M MUSIC ");
-	// change colors of title for inverted them
-	/*
-	for (i=0xBB80+80;i<0xBB80+1000;i++)
-	{
-	   if (i<0xBB70+740)
-	   {
-	   if (peek(i)==32)
-	       *(unsigned char*)i=122|128;
-	   if (peek(i)==33)
-	       *(unsigned char*)i=32|128;
-	   }
-	   // text
-       if ((peek(i)>32)&&(peek(i)<96))
-	       *(unsigned char*)i=peek(i)|128;
-	
-	 }
-    */
-	 color_inverse_menu();
-	
-	 poke(0xBB80+(25*40)+9,12);
-	 poke(0xBB80+(25*40)+31,8);
+	poke(0xBB80+(25*40)+9,12);
+	poke(0xBB80+(25*40)+31,8);
 	 
 	 
-	 // to debbug
-	 // gotoxy(20,0);printf("CODE=%d IDX=%d",rain[index_raindrop],index_raindrop);
+	// to debbug
+	// gotoxy(20,0);printf("CODE=%d IDX=%d",rain[index_raindrop],index_raindrop);
 }
 void main()
 {
 	unsigned char kmenu=00;
 	unsigned int d1,d2;
+	int timer,raintimer;
 	redefine_char();
 	redefine_charExt();
-	sound_volume=7; // set volume to middle
+	volume=7; // set volume to middle
 	
     init_default_var();
 	// cursor hide ?
@@ -2314,35 +2466,37 @@ void main()
 	//display_house();
 	//display_floor();
 	display_menu();
-	scroll_timer=0; // To shake the game Title
+	
 	game_timer=0;
-	//SoundEffect(rain_menu_sound,sound_volume);
+	//SoundEffect(rain_menu_sound,volume);
 	
 	do 
 	{
-		game_timer++;
+		
 		scroll_text_time++;
-		scroll_timer++;
-		if (scroll_timer==64)
+		
+		timer++;
+		raintimer++;
+		if (timer==400)
 		{
 			scroll_left(1,8);
 			scroll_right(10,8);
 		}
-		if (scroll_timer==128)
+		if (timer==800)
 		{
 			scroll_right(1,8);
 			scroll_left(10,8);
-			scroll_timer=0;
+			timer=0;
 		}
 	
 		// SIMPLE TEXT SCROLLING
-		if (scroll_text_time==70)
+		if (scroll_text_time==128)
 		{
 			
 			asm(
 			"lda #40;"
-			"sta $FFFF;"
-			"ldy #0;" // 40 column
+			"sta $FFFF;"  // to debug
+			"ldy #0;" // start at column 0
 			"clc;"		
 	      "suite_scl;"
 			"iny;"
@@ -2356,56 +2510,41 @@ void main()
 			*(unsigned char*)(0xBB80+40+39)=credits_text[scroll_text];		
 			scroll_text++;		
 			if (scroll_text==sizeof(credits_text)-1)
+			{
 				scroll_text=0;
 				scroll_text_time=0;
+			}
+			scroll_text_time=0;
 		}
-		if (game_timer>(75-(sound_volume*5)))
-		{	       	
+			       	
+		if (raintimer==70)
+		{
 			drop_sliding_outside();
-			game_timer=0;
-		}
-		
+			raintimer=0;
+		}	
 			    		
 	   // gotoxy(2,0);printf("ENDGAME=%d",endgame);
 	    kmenu=key();
 		   
 		//drop_sliding++;
+		#ifdef DEBUG
 		if (kmenu!=0)
 		{
 			gotoxy(30,0);
 			printf("KEY=%d ",kmenu);
 		}
-		
+		#endif
 		if (kmenu==83) // touche 'S'
 		{		
-		 if (sound_volume<15)
-				sound_volume++;
+		 if (volume<15)
+				volume++;
 			else
-				sound_volume=0;
+				volume=0;
 		     
 			
 		//	SoundEffect(rain_menu_sound,sound_volume);
 		}
 		
-		if(kmenu==73)  // 'I' goto level editor 
-		{
-			//init_default_var();
-			cls();
-			gotoxy(0,0);printf("                                        ");
-			paper(7);
-			display_outside();
-			display_house();
-		
-			display_floor();
-			
-			//level_editor();
-			
-			endgame=0;
-			cls();
-			display_menu();
-			kmenu=0;
-			
-		}
 		
 		// if press space key to start game
 		if (kmenu==32)
@@ -2424,8 +2563,8 @@ void main()
 			main_game_loop();
 			if (endgame==1) // GAME OVER
 			{ 
-			
-				gotoxy(16,12);printf( "GAME OVER ");
+			    // do here GAME OVER MUSIC
+				gotoxy(16,14);printf( "GAME OVER ");
 				//gotoxy(16,14);printf(" SCORE:%d",score);
 				for(wait=0;wait<40000;wait++);
 				//poke(0xBB80+(13*40)+9,12);
