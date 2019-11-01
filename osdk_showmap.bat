@@ -1,5 +1,4 @@
 @ECHO OFF
-SET OSDKCOMP=-O3
 
 ::
 :: Initial check.
@@ -7,17 +6,21 @@ SET OSDKCOMP=-O3
 ::
 IF "%OSDK%"=="" GOTO ErCfg
 
-
 ::
 :: Set the build paremeters
 ::
 CALL osdk_config.bat
 
+::
+:: Generate the HTML file
+::
+%OSDK%\bin\MemMap.exe build\symbols build\map.htm %OSDKNAME% %OSDK%\documentation\documentation.css
 
 ::
-:: Launch the compilation of files
+:: Display the HTML file
 ::
-CALL %OSDK%\bin\make.bat %OSDKFILE%
+explorer build\map.htm
+
 GOTO End
 
 
@@ -28,8 +31,9 @@ GOTO End
 ECHO == ERROR ==
 ECHO The Oric SDK was not configured properly
 ECHO You should have a OSDK environment variable setted to the location of the SDK
-IF "%OSDKBRIEF%"=="" PAUSE
+pause
 GOTO End
 
 
 :End
+
