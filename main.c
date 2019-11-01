@@ -1,16 +1,16 @@
 //  RAIN PANIC   alpha version
 //  GOYO 2019 (C)
 //
-//  HIMEM on peut descendre à #600 (basic à #400)
+//  HIMEM on peut descendre Ã  #600 (basic Ã  #400)
 //  HI user ram  #9800
-// reste à implémenter:
+// reste Ã  implÃ©menter:
 // -------------------
 //
-// -les différents niveaux -> toutes les vagues de pluie . actuellement que la 1ere vague
+// -les diffÃ©rents niveaux -> toutes les vagues de pluie . actuellement que la 1ere vague
 //
 // -gestion de l'actication du son et de la musique
 // 
-// - jambe qui marchent durant le déplacement continue
+// - jambes qui marchent durant le dÃ©placement continue
 //
 // - collision avec ice : faire tomber Aldo
 //
@@ -120,7 +120,7 @@ char          volume;		     // game sound volume
 char          walking;           // manage walking
 char 		  walking_alt;       // alternate legs chars to walking
 
-unsigned char jump_time=0;       // gestion du saut du héro 
+unsigned char jump_time=0;       // gestion du saut du hÃ©ro 
 unsigned char benddown=0;		 // time to avoid the fireball
 unsigned char standuptime;       // time to standup : to avoid to jump just after stand up
 
@@ -148,7 +148,7 @@ unsigned char k,lastk;           // to read the key pressed  : k=key();
 char unsigned wave_nbr;
 char          ceiling_y;         // hauteur du plafond = 8 fixe
 
-unsigned int  game_timer;        // compteur de temps général durant le jeu
+unsigned int  game_timer;        // compteur de temps gÃ©nÃ©ral durant le jeu
 char          life; 			 // player lifes
 char unsigned tile_fall;         // if tile fall
 char unsigned lightning;         // if lightning actived
@@ -177,7 +177,7 @@ unsigned char obj_ice;
 unsigned char obj_x;
 unsigned char obj_y;
 
-// ma,que son pour le JUMP, la retombé du jump, l'eau tombe à terre
+// ma,que son pour le JUMP, la retombÃ© du jump, l'eau tombe Ã  terre
 unsigned char bong_sound[]={104,177,184,44,254,29,166,58,27,83,35,74,2,83};
 unsigned char cat_collision_sound[]={102,144,100,122,168,7,252,9,215,92,153,10,10,1};
 unsigned char cat_at_door_sound[]={28,188,255,21,247,92,136,18,176,229,253,145,1,9};
@@ -300,7 +300,7 @@ unsigned char redefchar[]={
 06,06,06,06,07,03,01,00, // 94
 63,45,63,51,30,45,63,63, // 95
 24,24,24,24,56,48,32,00, // 96
-30,63,45,63,51,45,63,30, // 97  // ungry head   - ancien blanc coté gauche du ventre, peut etre recyclé
+30,63,45,63,51,45,63,30, // 97  // ungry head   - ancien blanc cotÃ© gauche du ventre, peut etre recyclÃ©
 63,63,63,00,63,63,63,51, // 98
 00,30,47,63,63,63,30,00, // 99 - ice boulder
 00,00,00,00,00,00,01,01, // 100
@@ -310,12 +310,12 @@ unsigned char redefchar[]={
 51,51,51,00,33,33,33,33, // 104
 32,32,32,00,32,32,56,56, // 105
 63,63,63,51,30,45,63,63, // 106
-0x08,0x08,28,28,62,62,46,28,  // 107   goutte à rattraper 1/2   - bug with 8 value ? must be hex 0x08
-00,00,00,00,00,00,00,00, // 108  goutte à rattraper 2/2
+0x08,0x08,28,28,62,62,46,28,  // 107   goutte Ã  rattraper 1/2   - bug with 8 value ? must be hex 0x08
+00,00,00,00,00,00,00,00, // 108  goutte Ã  rattraper 2/2
 00,00,04,04,14,14,10,04, // 109
 00,00,00,00,00,00,00,00, // 110
 30,63,45,63,63,45,51,30, // 111 head of life number
-04,28,31,15,03,03,02,06, // 112 right cat  // bug a cette position dans la memoire verifier si addresse utilsiée ailleurs
+04,28,31,15,03,03,02,06, // 112 right cat  // bug a cette position dans la memoire verifier si addresse utilsiÃ©e ailleurs
 01,01,62,60,60,12,38,42, // 113 right cat
 16,16,15,07,07,06,12,10, // 114 left cat
 04,07,63,62,56,24,40,44, // 115 left cat
@@ -346,11 +346,11 @@ unsigned char catcat[]={
 unsigned char redefcharExt[]={
 
 // happy aldo: player les bras en bas 
-00,00,00,00,00,00,00,30, // 34 à haut de la tête
-00,00,00,00,00,00,00,01, // 35 à gauche de la tête
-00,00,00,00,00,00,00,32, // 36 à droite de la tête
-03,03,06,06,06,00,06,06, // 37 à gauche du corps
-48,48,24,24,24,00,24,24, // 38 à droite du corps
+00,00,00,00,00,00,00,30, // 34 Ã  haut de la tÃªte
+00,00,00,00,00,00,00,01, // 35 Ã  gauche de la tÃªte
+00,00,00,00,00,00,00,32, // 36 Ã  droite de la tÃªte
+03,03,06,06,06,00,06,06, // 37 Ã  gauche du corps
+48,48,24,24,24,00,24,24, // 38 Ã  droite du corps
 22,61,63,63,30,30,12,00 // 39 kernel
 
 };
@@ -386,7 +386,7 @@ void wingame()
 	  
 	  // ici bruit de pluie qui s'arrete ?
 	  j=0;  
-	  //scanner tout l'écran afin de faire disparaitre les gouttes
+	  //scanner tout l'Ã©cran afin de faire disparaitre les gouttes
 	  for (pos_scr=0xBB80;pos_scr<0xBB80+1000;pos_scr++)
 	  {
 		  if (j++==39) 
@@ -575,7 +575,7 @@ void redefine_raindrop()
 	*(unsigned char*)(CARADDR+869)=62;
 	*(unsigned char*)(CARADDR+870)=46;
 	*(unsigned char*)(CARADDR+871)=28;//poke (CARADDR+871,28);
-	// 108 blanc reservé pour drop_sliding goutte sur 2eme car
+	// 108 blanc reservÃ© pour drop_sliding goutte sur 2eme car
 	*(unsigned char*)(CARADDR+856)=0;
 	*(unsigned char*)(CARADDR+857)=0;
 	*(unsigned char*)(CARADDR+858)=0;
@@ -690,7 +690,7 @@ void manage_lightning()
 		
 		   tile_y=ceiling_y-3;
 		   
-		   lightning_time=12; // temps de durée de l'éclair  
+		   lightning_time=12; // temps de durÃ©e de l'Ã©clair  
 		   paper(0);
 		   if (active_sound==1)
 		   { 
@@ -710,7 +710,7 @@ void manage_lightning()
 			*(unsigned char*)(0XBBAA+(40*ly)+tile_x)=124|128;
 			//poke(0XBBAA+(40*ly)+tile_x+2,4);
 		}
-		// pointe de l'éclair
+		// pointe de l'Ã©clair
 		//poke(0XBBAA+(40*(ly))+tile_x-1,3);
 		*(unsigned char*)(0XBBAA-1+(40*(ly))+tile_x)=125|128;
 		//poke(0XBBAA+(40*(ly))+tile_x+1,4);
@@ -719,7 +719,7 @@ void manage_lightning()
             // clear ligthning		
 			for (ly=0;ly<ceiling_y-1;ly++)
 			{
-			    // efface éclair avec gouttes
+			    // efface Ã©clair avec gouttes
 				if (ly<def_ceiling_pos)
 				{
 					*(unsigned char*)(0XBBAA+(40*ly)+tile_x-1)=109;
@@ -966,10 +966,10 @@ void manage_cat()
 		}
 		 
 	}
-	else // cat ==1 , gérer la présence du cat et son déplacement
+	else // cat ==1 , gÃ©rer la prÃ©sence du cat et son dÃ©placement
 	{
          // affichage du cat
-		 //   forme du cat de gauche à droite
+		 //   forme du cat de gauche Ã  droite
 		 if (dircat==0)
 		 {
 		 
@@ -979,7 +979,7 @@ void manage_cat()
 			*(unsigned char*)(0Xbb80+(caty*40)+catx+1)=115;
 			
 		 }
-		 else  // forme du cat de droite à gauche
+		 else  // forme du cat de droite Ã  gauche
 		 {
 		 	*(unsigned char*) (0Xbb80+(caty*40)+catx)=112;
 			*(unsigned char*) (0Xbb80+(caty*40)+catx+1)=113;
@@ -991,7 +991,7 @@ void manage_cat()
 		 {
 		     catwait--;
 		 }
-	     if (dircat==0) // de gauche à droite
+	     if (dircat==0) // de gauche Ã  droite
 		 {  
 		    if (catwait==0)
 			{
@@ -1017,7 +1017,7 @@ void manage_cat()
 			  *(unsigned char*)(0Xbb80+(caty*40)+catx)=109;
 			}
 		 } 
-		 if (dircat==1) // de droite à gauche
+		 if (dircat==1) // de droite Ã  gauche
 		 {
 		    if (catwait==0)
 			{
@@ -1031,7 +1031,7 @@ void manage_cat()
 			    *(unsigned char*)(0Xbb80+(caty*40)+36)=109;
 		     	*(unsigned char*)(0Xbb80+(caty*40)+37)=109;
 			}
-			if (catx==2)  //arrivé du cat à la position 1
+			if (catx==2)  //arrivÃ© du cat Ã  la position 1
 			{
 				seecat=0;
 			 // effacement du cat par la pluie et mur
@@ -1087,10 +1087,10 @@ void manage_fireball()
 	if (fireball==0) 
 	{
 		j=0;		 
-		 if (seefireball==1) //Apparait à gauche
+		 if (seefireball==1) //Apparait Ã  gauche
 		 { 
 		 	 //tile_x=20;
-		     //lightning_time=12; // temps de durée de l'éclair  
+		     //lightning_time=12; // temps de durÃ©e de l'Ã©clair  
 		   
    		     fireballx=3;
 			 fireball=1;
@@ -1104,7 +1104,7 @@ void manage_fireball()
 			 lightning=1;
 			 tile_x=20;
 		 }
-		 if (seefireball==2)// apparait à droite
+		 if (seefireball==2)// apparait Ã  droite
 		 {
 			
 		     fireballx=34;
@@ -1120,7 +1120,7 @@ void manage_fireball()
 			 tile_x=20;
 		 }
 	}
-	else // fireball ==1 , gérer la présence du fireball et son déplacement
+	else // fireball ==1 , gÃ©rer la prÃ©sence du fireball et son dÃ©placement
 	{
 		*(unsigned char*) (0Xbb80+(firebally*40)+fireballx)=120;
 		*(unsigned char*) (0Xbb80+(firebally*40)+fireballx+1)=121;
@@ -1130,7 +1130,7 @@ void manage_fireball()
 	     if (fireballwait>0) 
 		     fireballwait--;
 		
-	     if (dirfireball==0) // de gauche à droite
+	     if (dirfireball==0) // de gauche Ã  droite
 		 {  
 		    if (fireballwait==0)
 			{
@@ -1155,7 +1155,7 @@ void manage_fireball()
 			  *(unsigned char*)(0Xbb80+(firebally*40)+fireballx)=109;
 			}
 		 } 
-		 if (dirfireball==1) // de droite à gauche
+		 if (dirfireball==1) // de droite Ã  gauche
 		 {
 		    if (fireballwait==0)
 		       fireballx--;
@@ -1292,10 +1292,10 @@ void disp_aldo(char x,char y)
 	// legs up
 	if (legsup==1)
 	{
-	    // mettre les jambes sur les cotés 2xcar de chaque coté
+	    // mettre les jambes sur les cotÃ©s 2xcar de chaque cotÃ©
 		*(unsigned char*)(0xbb80+((aldoy+2)*40)+x-1)=117;
 		*(unsigned char*)(0xbb80+((aldoy+2)*40)+x-2)=116;
-        if (px<6)  // redessine le mur à gauche
+        if (px<6)  // redessine le mur Ã  gauche
 	    {
 	        *(unsigned char*)(0xbb80+((aldoy+2)*40)+x-3)=126;
 	    }
@@ -1307,13 +1307,13 @@ void disp_aldo(char x,char y)
 		*(unsigned char*)(0xbb80+((aldoy+2)*40)+x+1)=118;   
      	*(unsigned char*)(0xbb80+((aldoy+2)*40)+x+2)=119; 
 		
-		if (px<32)  // redessine le mur à gauche
+		if (px<32)  // redessine le mur Ã  gauche
 			*(unsigned char*)(0xbb80+((aldoy+2)*40)+x+3)=0;
 		
 		
 		if (jump_time==jump_max_time&&benddown==0) 
 		{
-			// blancs à la place des jambes du bas
+			// blancs Ã  la place des jambes du bas
 			*(unsigned char*)(0xbb80+((aldoy+3)*40)+x-1)=32;
 			*(unsigned char*)(0xbb80+((aldoy+3)*40)+x)=32;
 			*(unsigned char*)(0xbb80+((aldoy+3)*40)+x+1)=32;
@@ -1372,7 +1372,7 @@ void unshoot()
 {
     for (wait=0;wait<30;wait++)
 	{
-		// faire tourner des étoile !!
+		// faire tourner des Ã©toile !!
 		disp_aldo(px,py);
 	    for(wait2=0;wait2<4;wait2++)
 		ink(1);
@@ -1401,7 +1401,7 @@ void manage_rain()
 		// here we find a free place in the raindrop to create a new drop . array if raindroptime=0
 		if (raindropstate[rdindex]==0 && raindroptime<1)
 		{
-			raindropstate[rdindex]=1; // cellule de la goutte devient occupée
+			raindropstate[rdindex]=1; // cellule de la goutte devient occupÃ©e
 			
 			if (altchar==0)
 				raindropy[rdindex]=ceiling_y+1;
@@ -1416,8 +1416,8 @@ void manage_rain()
 				poke(0XBB80+(40*(ceiling_y+1))+codedrop,122);
 				
 			// delai entre 2 gouttes
-			//décompte lors du déplacement de la goutte
-			// à lire dans le tableau des vagues
+			//dÃ©compte lors du dÃ©placement de la goutte
+			// Ã  lire dans le tableau des vagues
 			// second code read from the rain array	
 			// raindroptime = wait delay to read next rain drop
 			raindroptime=rain[index_raindrop+1];
@@ -1500,7 +1500,7 @@ void manage_rain()
 						// fin partie
 						endgame=1;
 					}	
-					display_wave_level_timer=30; // durée d'affichage du numero de la vague suivante
+					display_wave_level_timer=30; // durÃ©e d'affichage du numero de la vague suivante
 				}
 			}
 		//	raindroptimer[rdindex]=wait_fall_raindrop; // wait_fall_raindrop
@@ -1549,7 +1549,7 @@ void manage_rain()
 	} //end for (rdindex=0
 	
 	// here manage sliding state = 0 to alternate the two drop char
-	if (drop_sliding==0) // etat initial du drop_sliding , la goutte a entierement glissé d'un char a l'autre
+	if (drop_sliding==0) // etat initial du drop_sliding , la goutte a entierement glissÃ© d'un char a l'autre
 	{
 
 		for (rdindex=0;rdindex<RAINDROPMAX;rdindex++)
@@ -1585,7 +1585,7 @@ void manage_rain()
 		}	
 		drop_sliding++;
 	}
-	else // manage intermediate rain drop sliding state  - etat de glissement de goutte intermédiaire
+	else // manage intermediate rain drop sliding state  - etat de glissement de goutte intermÃ©diaire
 	{
 	   // reserve time to time compentation with the previous loop
 	   for(wait=0;wait<50;wait++);
@@ -1611,7 +1611,7 @@ void manage_rain()
 	   if (altchar==1) // raindrop scroll 108->107
 	   {  	   
 			// possible changement de la vitesse de gliseement 
-			// avec for(i=0;i<vitesse;i++) pour répéter le nombre de drop_sliding
+			// avec for(i=0;i<vitesse;i++) pour rÃ©pÃ©ter le nombre de drop_sliding
 			// il faut aussi changer la ligne en dessous de l'asm suvante (drop_sliding++)
 			asm("lda $B400+856+15;"				
 				"tax;"
@@ -1654,7 +1654,7 @@ void manage_rain()
 			}
 			else
 			   altchar=0;
-			   // on incrémente le y de la boucle (après 8 drop_sliding d'octet vers le bas)
+			   // on incrÃ©mente le y de la boucle (aprÃ¨s 8 drop_sliding d'octet vers le bas)
 			for (rdindex=0;rdindex<RAINDROPMAX;rdindex++)
 			{		
 				if (raindropstate[rdindex]==1)
@@ -1886,7 +1886,7 @@ color_inverse_menu()
 			"clc;"
 			"lda read_menu+1;"  // load low address
 			"adc #40;"			// a=a+40
-			"bcc saut_menu;"    // si pas de retenue on saute à saut_menu
+			"bcc saut_menu;"    // si pas de retenue on saute Ã  saut_menu
 				"inc read_menu+2;"  // ajout de la retenue
 				"inc write_menu+2;"
 			"saut_menu;"	
@@ -2237,7 +2237,7 @@ void main_game_loop()
 				// fin partie
 			}
 			
-			display_wave_level_timer=30; // durée d'affichage du numero de la vague suivante
+			display_wave_level_timer=30; // durÃ©e d'affichage du numero de la vague suivante
 		}
 		#endif
 		if (k==0) // player do nothing
@@ -2314,7 +2314,7 @@ void main_game_loop()
 		}
 	
 			
-		game_timer++; // compteur de temps dans le jeu utile pour plusieurs raisons, nottemment déclenchement vagues de gouttages
+		game_timer++; // compteur de temps dans le jeu utile pour plusieurs raisons, nottemment dÃ©clenchement vagues de gouttages
  		display_score();
 		lastk=k;  // save last key pressed
 		#ifdef DEBUG
@@ -2357,11 +2357,11 @@ void init_default_var()
 	seefireball=0;
     colfireballtime=0;
 	
-	jump_time=0; 				// pas d'etat de saut par defaut . indicateur de saut du joueur, si en état de saut 
+	jump_time=0; 				// pas d'etat de saut par defaut . indicateur de saut du joueur, si en Ã©tat de saut 
 	benddown=0;
 	standuptime=0;
 	
-    index_raindrop=0*2; 	    // ****** must be pair. se positionner au début du tableau des positions et timing des gouttes
+    index_raindrop=0*2; 	    // ****** must be pair. se positionner au dÃ©but du tableau des positions et timing des gouttes
 	drop_catch_time=0;          //  
     shoot_cat_time=0;
 	shoot_fireball_time=0;
@@ -2370,7 +2370,7 @@ void init_default_var()
 	game_timer=0;
 
 	life=4;                    // nombre de life du personnage normal : 3
-    tile_fall=0;  				// tuile non active par défaut
+    tile_fall=0;  				// tuile non active par dÃ©faut
 	tile_x=0;					// x tile position
 	tile_y=0;					// y tile position
 	obj_kernel=0;
@@ -2379,7 +2379,7 @@ void init_default_var()
 	lightning=0;	      		//        lightning appear
 	lightning_time=0;			// lightning appear duration
     
-	k=0;						// k = key(); contient la touche enfoncée
+	k=0;						// k = key(); contient la touche enfoncÃ©e
 	game_timer=0;
 
 	music_index=0;
@@ -2396,7 +2396,7 @@ void init_default_var()
 	scroll_text=0;
 	scroll_text_time=0;
 
-    wave_nbr=0;				    // numéro de vague de gouttes en cours . vague de goutte=niveau
+    wave_nbr=0;				    // numÃ©ro de vague de gouttes en cours . vague de goutte=niveau
 
 	// redef drop
 	redefine_raindrop();
