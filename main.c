@@ -193,6 +193,12 @@ unsigned char scroll_timer;
 unsigned char read; //to read string from keyboard;
 
 void AdvancedPrint(char x_pos,char y_pos,const char *ptr_message);
+void drop_sliding_outside();
+void scroll_right(char y,char nbr);
+void disp_aldo(char x,char y);
+void unshoot();
+void display_floor();
+void display_ceiling();
 
 char credits_text[]="             RAIN PANIC                "
 					"           INSTRUCTIONS :  DURING A STRONG THUNDERSTORM HELP MR ALDO TO CATCH ALL THE DROPS OF WATER FALLING FROM HIS HOUSE CEILING "
@@ -252,44 +258,7 @@ char game_music[] = {
 // 150-176 = ice fall
 
  
-// 0x08 or 0x09 must be in hexa don't know why. Its look lika a bug ?!
-unsigned char rain[] = {   //----------------------------------------------|new wave|
-// wave 1  time=3/2      x position (7 left---19 center -- right 31)
-  253,3, 250,0, 19,2, 252,0, 32,2, 7,2, 253,0,	
-  32,3, 19,3, 07,3,  32,3,  251,0 ,7,3, 16,3, 18,3, 20,3,
-  07,3  ,9,3  ,250,0 ,26,3  ,28,3, 251,0,  32,3, 7,3, 250,0, 32,3, 
-  15,3  ,17,3, 251,0 ,19,3  ,21,3, 250,0, 23,3, 
-  07,3 ,9,3 ,11,3 ,251,0 ,28,3  ,32,3,  250,0, 07,3, 251,0 ,32,3, 22,3,
-  251,0, 21,3,  252,0, 7,3, 250,0, 32,2, 251,0, 21,6,  // 39eme
-  255,0, // wave 2 time =2
-  7,3, 32,2, 32,2, 250,0, 7,2,
-  13,3 ,30,2, 251,0, 07,3, 215,0, 32,3, 250,0 ,18,3, 250,0, 07,3, 32,2, 217,0, // 
-  07,2, 251,0, 32,3,   250,0, 07,3, 251,0, 32,3,  250,0, 07,3, 207,0, 
-  31,2, 17,3, 217,0, 32,2, 224,0, 7,1, 19,6,   
-  255,0,  // wave 3 
-  14,2, 251,0 ,25,2,  215,0, 250,0, 32,2, 07,2, 251,0, 32,2, // 73eme
-  14,2,250,0, 16,2, 251,0, 18,2, 250,0, 20,2,217,0,14,2,218,0,32,2,
-  07,2, 32,2, 251,0, 9,3, 220,0, 168,3, // ice here  reprendre ici 
-  32,3, 07,3, 215,0, 31,3, 215,0, 07,3, 216,0, 30,3, 
-  255,0, // wave 4
-  250,0, 0x08,3,212,0, 13,2,  
-  29,3, 251,0, 0x09,3,  230,0, 28,3, 251,0, 10,3, 251,0, 13,4, 230,0, 30,4,  16,4, 208,0, 
-  07,4, 250,0, 32,4,   18,4, 07,4, 10,4, 251,0, 15,4, 11,4, 24,4, 
-  255,0,  // wave 5 
-  19,3,
-  9,1, 11,1, 251,0, 13,1, 15,1, 250,0, 17,1,19,1, 
-  251,0, 21,1, 23,1, 250,0, 25,1,27,4,
-  250,0, 15,0, 251,0, 17,0 ,19,0, 250,0, 21,0,23,0, 25,3,
- 
-  7,0, 250,0, 9,0, 11,0, 250,0, 13,0 ,15,0, 17,3,251,0, 
-  21,0, 23,0, 251,0, 25,0, 27,0, 29,0, 31,3, 
-  7,0, 250,0, 9,0, 11,0, 251,0, 13,0 ,15,3,
-  21,0, 23,0, 25,0, 27,0, 29,0, 31,3,
-  7,0,9,0,11,1, 14,0,16,0,18,1, 21,0,23,0,25,1, 27,0,29,0,31,1, 
-  19,2, 19,5,
-  // one line
-  //  [x,y] y =0 -> force to align drops in same line
- };
+#include "waves.c"
 
 // redefined 35 characters for graphics and sprites game
 unsigned char redefchar[]={
@@ -1904,7 +1873,7 @@ void display_house()
 
 void main_game_loop()
 {
-	
+	int tt;
 	poke(0x26A,10); // 11 curseur revient ?
 	
 	poke(0x24F,1);
@@ -1915,7 +1884,7 @@ void main_game_loop()
 		#if def DEBUG
 		timer1=deek(0x276);
 		#endif
-	
+		for(tt=0;tt<1000;tt++);
 		//poke(782,64); disabled Interruptions Keyboard Wait Timer 
         
 		drop_sliding_outside();
@@ -2080,7 +2049,7 @@ void main_game_loop()
 				}
 			}
         }
-		# KEY DOWN : Adlo benddown     key = <down arrow>
+		//# KEY DOWN : Adlo benddown     key = <down arrow>
 		if ((k==10)&&(benddown==0)&&(jump_time==0))
 		{	
 			benddown=1;
