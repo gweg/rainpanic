@@ -28,15 +28,22 @@ class sequence ():
     def insert (self, tim, evt):
         if (tim < self.__duration__):
             self.__seq__.append((tim, evt))
+        else :
+            print ("Warning rejected _events: tim = %d evt = %d. please check DOP"%(tim, evt))
 
     def toCarray(self):
         res = ""
         sl = sorted(self.__seq__, key=lambda evt: evt[0])
+        cum = 0
         for i in range(len(sl)-1):
             res += "" if (i == 0) else ", "
-            code, dur = val2txt(sl[i][1]), val2txt(sl[i+1][0]-sl[i][0])
-            res += "%s, %s"%(code, dur)
-            if (i%14 == 0): res += "\n"
+            code, dur = sl[i][1], sl[i+1][0]-sl[i][0]
+            cum = cum + dur
+            strCode, strDur = val2txt(code), val2txt(dur)
+            res += "%s, %s"%(strCode, strDur)
+            if (cum >= 10): 
+                cum = 0
+                res += "\n"
         res += ", 255, 0,\n"
         return res
 
@@ -46,7 +53,7 @@ class sequence ():
             if (thePattern == "UNIFORM"):
                 return random.randrange(0, self.__duration__)
             elif (thePattern == "GAUSS"):
-                return max(self.__duration__-1, abs(int(random.gauss(self.__duration__/2, self.__duration__/3))))
+                return int(random.gauss(self.__duration__/2, self.__duration__/4))
             elif (thePattern == "TRIANGULAR"):
                 return int(random.triangular(1, self.__duration__, self.__duration__*0.85))
 
@@ -54,10 +61,12 @@ class sequence ():
         for i in range (nb):
             nb_attempt = 0
             t=dop_random (pattern)
-            while (t in tims and nb_attempt < 100):
+            while (t in tims and nb_attempt < 100 and ((t>self.__duration__) or (t<=0))):
                 t=dop_random (pattern)
                 nb_attempt += 1
-            if (nb_attempt >= 100): break
+            if (nb_attempt >= 100): 
+                print ("Warning: max attempt reached. Wave is too loaded ?")
+                break
             tims.append (t)
 
         for t in tims:
@@ -76,15 +85,26 @@ def cat(): return random.choice([250, 251])
 def fireball(): return random.choice([252, 253])
 
 def main():
-    S=sequence(123)
-    S.insert(12, 35)
-    S.spread (12, raindrop, "UNIFORM")
-    S.spread (5, lightning, "UNIFORM")
-    S.spread (5, cat, "GAUSS")
-    S.spread (5, ice, "TRIANGULAR")
+    S1=sequence(50)
+    #S1.insert(12, 35)
+    S1.spread (12, raindrop, "UNIFORM")
+    S1.spread (5, lightning, "UNIFORM")
+    S1.spread (5, cat, "GAUSS")
+    S1.spread (5, ice, "TRIANGULAR")
+
+
+    S2=sequence(50)
+    #S2.insert(12, 35)
+    S2.spread (12, raindrop, "UNIFORM")
+    S2.spread (5, lightning, "UNIFORM")
+    S2.spread (5, cat, "GAUSS")
+    S2.spread (5, ice, "TRIANGULAR")
 
     res = "unsigned char rain[] = {\n"
-    res += S.toCarray()
+    res +="// Wave 1\n"
+    res += S1.toCarray()
+    res +="// Wave 2\n"
+    res += S2.toCarray()
     res += """// wave 1  time=3/2      x position (7 left---19 center -- right 31)
   253,3, 250,0, 19,2, 252,0, 32,2, 7,2, 253,0,	
   32,3, 19,3, 07,3,  32,3,  251,0 ,7,3, 16,3, 18,3, 20,3,
@@ -125,7 +145,11 @@ def main():
 
     print (res)
 
-    with open('wave2.c', 'w') as file:  # Use file to refer to the file object
+    with open('waves2.c', 'w') as file:  # Use file to refer to the file object
         file.write(res)
+
+
+
+
 if __name__ == '__main__':
     main()

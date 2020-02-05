@@ -1,3 +1,17 @@
+//
+//   WAVES OF RAINDROP DATA 
+//
+// RAIN[] -> raindrop array [XPOS(drop), DELAY(between 2 drop),,,,]
+// rain drop must be bewteen 6 and 32 x position (7 left---19 center -- right 31) with step of 2 )
+// 255 = next wave
+// 250 = cat appear on the left (cardir)
+// 251 = cat appear on the right
+// 252 = fireball appear on the left
+// 253 = fireball appear on the right
+// 200-226 = lightning appear and use this code to define x position of lighting (Xpox = code-200 + 7)
+// 180-196 = Life fall 
+// 150-176 = ice fall
+
 // 0x08 or 0x09 must be in hexa don't know why. Its look lika a bug ?!
 unsigned char rain[] = {   //----------------------------------------------|new wave|
 // wave 1  time=3/2      x position (7 left---19 center -- right 31)

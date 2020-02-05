@@ -1884,7 +1884,7 @@ void main_game_loop()
 		#if def DEBUG
 		timer1=deek(0x276);
 		#endif
-		for(tt=0;tt<1000;tt++);
+		for(tt=0;tt<500;tt++);
 		//poke(782,64); disabled Interruptions Keyboard Wait Timer 
         
 		drop_sliding_outside();
