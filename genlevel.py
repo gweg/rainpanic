@@ -8,6 +8,9 @@
 #-------------------------------------------------------------------------------
 import random
 
+
+
+
 def val2txt(val):
     if ((val == 9) or (val == 8)):
         return "0x%02x"%(val)
@@ -85,26 +88,26 @@ def cat(): return random.choice([250, 251])
 def fireball(): return random.choice([252, 253])
 
 def main():
-    S1=sequence(50)
-    #S1.insert(12, 35)
-    S1.spread (12, raindrop, "UNIFORM")
-    S1.spread (5, lightning, "UNIFORM")
-    S1.spread (5, cat, "GAUSS")
-    S1.spread (5, ice, "TRIANGULAR")
 
+    waves_list = []
+    NB_WAVES = 12
+    for i in range (NB_WAVES):
 
-    S2=sequence(50)
-    #S2.insert(12, 35)
-    S2.spread (12, raindrop, "UNIFORM")
-    S2.spread (5, lightning, "UNIFORM")
-    S2.spread (5, cat, "GAUSS")
-    S2.spread (5, ice, "TRIANGULAR")
+        S1=sequence(50)
+        #S1.insert(12, 35)
+        S1.spread (12, raindrop, "UNIFORM")
+        S1.spread (5, lightning, "UNIFORM")
+        S1.spread (5, cat, "GAUSS")
+        S1.spread (5, ice, "TRIANGULAR")
+        waves_list.append(S1)
 
     res = "unsigned char rain[] = {\n"
-    res +="// Wave 1\n"
-    res += S1.toCarray()
-    res +="// Wave 2\n"
-    res += S2.toCarray()
+    cpt = 1
+    for wav in waves_list:
+        res +="// Wave %d\n"%(cpt)
+        res += wav.toCarray()
+        cpt += 1
+
     res += """// wave 1  time=3/2      x position (7 left---19 center -- right 31)
   253,3, 250,0, 19,2, 252,0, 32,2, 7,2, 253,0,	
   32,3, 19,3, 07,3,  32,3,  251,0 ,7,3, 16,3, 18,3, 20,3,
