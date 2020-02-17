@@ -64,13 +64,14 @@ class sequence ():
         for i in range (nb):
             nb_attempt = 0
             t=dop_random (pattern)
-            while (t in tims and nb_attempt < 100 and ((t>self.__duration__) or (t<=0))):
+            while (((t in tims) and (nb_attempt < 100)) or ((t>self.__duration__) or (t<=0))):
                 t=dop_random (pattern)
                 nb_attempt += 1
             if (nb_attempt >= 100): 
                 print ("Warning: max attempt reached. Wave is too loaded ?")
                 break
             tims.append (t)
+            #print ("added time: %d %s"%(t,tims))
 
         for t in tims:
             self.insert(t,evtgetter())
@@ -87,19 +88,63 @@ def cat(): return random.choice([250, 251])
 
 def fireball(): return random.choice([252, 253])
 
+def generateWaves():
+    waves_list = []
+
+    S=sequence(50)
+    # Sequence 1: only Rain Drop
+    S.spread (24, raindrop, "UNIFORM")
+    waves_list.append(S)
+
+    S=sequence(50)
+    # Sequence 2: Rain Drop and Ice
+    S.spread (24, raindrop, "UNIFORM")
+    S.spread (5, ice, "GAUSS")
+    waves_list.append(S)
+
+    S=sequence(50)
+    # Sequence 3: Rain Drop and Ice
+    S.spread (24, raindrop, "UNIFORM")
+    # S.spread (5, lightning, "UNIFORM")
+    # S.spread (5, cat, "GAUSS")
+    S.spread (5, ice, "GAUSS")
+    waves_list.append(S)
+
+    S=sequence(60)
+    # Sequence 4: Rain Drop, Ice and Life
+    S.spread (24, raindrop, "UNIFORM")
+    # S.spread (5, lightning, "UNIFORM")
+    # S.spread (5, cat, "GAUSS")
+    S.spread (10, ice, "GAUSS")
+    S.spread (10, life, "GAUSS")
+    waves_list.append(S)
+
+    S=sequence(80)
+    # Sequence 5: Rain Drop, Lighning and Life
+    S.spread (30, raindrop, "UNIFORM")
+    S.spread (5, lightning, "UNIFORM")
+    # S.spread (5, cat, "GAUSS")
+    # S.spread (10, ice, "GAUSS")
+    S.spread (10, life, "GAUSS")
+    waves_list.append(S)
+
+    S=sequence(80)
+    # Sequence 6: Rain Drop, Lighning and Life
+    S.spread (30, raindrop, "UNIFORM")
+    S.spread (15, lightning, "UNIFORM")
+    # S.spread (5, cat, "GAUSS")
+    # S.spread (10, ice, "GAUSS")
+    S.spread (5, life, "GAUSS")
+    waves_list.append(S)
+
+
+
+    return waves_list
+
 def main():
 
-    waves_list = []
-    NB_WAVES = 12
-    for i in range (NB_WAVES):
 
-        S1=sequence(50)
-        #S1.insert(12, 35)
-        S1.spread (12, raindrop, "UNIFORM")
-        S1.spread (5, lightning, "UNIFORM")
-        S1.spread (5, cat, "GAUSS")
-        S1.spread (5, ice, "TRIANGULAR")
-        waves_list.append(S1)
+    waves_list = generateWaves()
 
     res = "unsigned char rain[] = {\n"
     cpt = 1
@@ -146,7 +191,7 @@ def main():
 """
     res += "};\n"
 
-    print (res)
+    # print (res)
 
     with open('waves2.c', 'w') as file:  # Use file to refer to the file object
         file.write(res)

@@ -259,6 +259,7 @@ char game_music[] = {
 
  
 #include "waves.c"
+#define SLOW_DOWN_DURATION 100
 
 // redefined 35 characters for graphics and sprites game
 unsigned char redefchar[]={
@@ -1884,7 +1885,10 @@ void main_game_loop()
 		#if def DEBUG
 		timer1=deek(0x276);
 		#endif
-		for(tt=0;tt<500;tt++);
+
+		#ifdef SLOW_DOWN_DURATION 
+		for(tt=0;tt<SLOW_DOWN_DURATION;tt++);
+		#endif
 		//poke(782,64); disabled Interruptions Keyboard Wait Timer 
         
 		drop_sliding_outside();
