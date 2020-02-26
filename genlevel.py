@@ -137,6 +137,32 @@ def generateWaves():
     S.spread (5, life, "GAUSS")
     waves_list.append(S)
 
+    S=sequence(80)
+    # Sequence 7: Rain Drop, lightning, ice and Life
+    S.spread (30, raindrop, "UNIFORM")
+    S.spread (8, lightning, "UNIFORM")
+    S.spread (8, ice, "UNIFORM")
+    S.spread (5, life, "GAUSS")
+    waves_list.append(S)
+
+    S=sequence(80)
+    # Sequence 8: Rain Drop, lightning, cat, ice and Life
+    S.spread (30, raindrop, "UNIFORM")
+    S.spread (5, lightning, "UNIFORM")
+    S.spread (5, cat, "UNIFORM")
+    S.spread (5, ice, "UNIFORM")
+    S.spread (5, life, "GAUSS")
+    waves_list.append(S)
+
+    S=sequence(80)
+    # Sequence 9: Rain Drop, lightning, cat, ice and Life
+    S.spread (30, raindrop, "UNIFORM")
+    #S.spread (15, fireball, "UNIFORM")
+    S.spread (15, lightning, "UNIFORM")
+    S.spread (15, ice, "UNIFORM")
+    S.spread (15, cat, "UNIFORM")
+    S.spread (5, life, "GAUSS")
+    waves_list.append(S)
 
 
     return waves_list
