@@ -207,7 +207,7 @@ char credits_text[]="             RAIN PANIC                "
 					"    USE SPACE TO JUMP        ESC TO EXIT   "
 					"                                                    "
 					"  CODING BY GOYO IN C LANGUAGE WITH ORIC OSDK AND FEW INLINE ASSAMBLY CODE         ORIGINAL MUSIC : LADYWASKY      "
-					"  THANKS TO THE HELP OF MANY MEMBERS OF COE FORUM : DBUG  RETORIC"
+					"  THANKS TO THE HELP OF MANY MEMBERS OF COE FORUM : DBUG  RETORIC JIBE"
 					"  LADYWASKY  DRPSY  KENNETH  ISS AND OTHERS ORICIANS ..           "
 					"  HAVE FUN .....                     ";
 				
