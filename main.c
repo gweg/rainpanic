@@ -3,12 +3,13 @@
 //
 //  HIMEM on peut descendre à #600 (basic à #400)
 //  HI user ram  #9800
+//
 // reste à implémenter:
 // -------------------
 //
-// -les différents niveaux -> toutes les vagues de pluie . actuellement que la 1ere vague
+// -les différents niveaux -> toutes les vagues de pluie . géré par JB PERIN...
 //
-// -gestion de l'actication du son et de la musique
+// -gestion de l'activation/desactivation du son et de la musique
 // 
 // - jambes qui marchent durant le déplacement continue
 //
