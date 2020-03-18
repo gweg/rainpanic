@@ -206,7 +206,7 @@ char credits_text[]="             RAIN PANIC                "
 					"    USE LEFT AND RIGHT ARROWS TO MOVE ALDO (OR O,P)"
 					"    USE SPACE TO JUMP        ESC TO EXIT   "
 					"                                                    "
-					"  CODING BY GOYO IN C LANGUAGE WITH ORIC OSDK AND FEW INLINE ASSAMBLY CODE         ORIGINAL MUSIC : LADYWASKY      "
+					"  CODING BY GOYO IN C LANGUAGE WITH ORIC OSDK AND FEW INLINE ASSAMBLY CODE         LEVEL DESIGNER : J-B PERIN       ORIGINAL MUSIC : LADYWASKY      "
 					"  THANKS TO THE HELP OF MANY MEMBERS OF COE FORUM : DBUG  RETORIC JIBE"
 					"  LADYWASKY  DRPSY  KENNETH  ISS AND OTHERS ORICIANS ..           "
 					"  HAVE FUN .....                     ";
