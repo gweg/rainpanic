@@ -1,5 +1,6 @@
+//
 //  RAIN PANIC   alpha version
-//  GOYO 2019 (C) ***/
+//  GOYO 2019 (C) ****/
 //
 //  HIMEM on peut descendre à #600 (basic à #400)
 //  HI user ram  #9800
@@ -13,7 +14,13 @@
 // 
 // - jambes qui marchent durant le déplacement continue
 //
-// - collision avec ice : faire tomber Aldo
+// - collision avec ice : faire tomber Aldo au sol
+//
+// - implémenter le circle en asm si possible.
+//
+// - révision du 1/5/2020
+//
+//		affichage du sol après chaque collision avec Aldo afin d'éffacer les traces de ses pieds.
 //
 // BUGS :
 // ------
@@ -22,36 +29,7 @@
 //
 //   legs traces
 //
-/*  chars coding screen
-  25C=7,64  WAVE 1,zzzzzzzzzzzzzzzANDz    
-  mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm  
-  mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm  
-  mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm  
-  mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm  
-  mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm  
-  mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm  
-  m ~zzlzzzzzzzzzzzzzzzzzzzzzzzzzzz~mm  
-  m ~                              ~mm  
-  mm~  l                           ~mm  
-  mm~  k                           ~mm  
-  mm~                              ~mm  
-  mm~                              ~mm  
-  mm~                              ~mm  
-  mm~                              ~mm  
-  mm~                              ~mm  
-  mm~                              ~mm  
-  mm~                              ~mm  
-  mm~                              ~mm  
-  mm~                              ~mm  
-  mm~            [\]               ~mm  
-  mm~            ^_`               ~mm  
-  mm~            abc               ~mm  
-  mm~            ghi               ~mm  
-  ~~~                              ~~~  
-  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~  
-  ~o~o~o~~~~~~~~~~~~~~~~~~SCORE 0 ~~~~  
-  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~  
- 
+/* 
   Oric Std Charset                                
    =32 !=33 "=34 #=35 $=36 %=37 &=38 '=3
   9 (=40 )=41 *=42 +=43 ,=44 -=45 .=46 /
@@ -85,7 +63,7 @@
 // arrays to manage rain drops, for : x y timer state alstate
 #define floor_y 25
 
-#undef DEBUG              // to switch to debug mode !!! : define/undef
+#define DEBUG              // to switch to debug mode !!! : define/undef
 
 unsigned char raindropx[RAINDROPMAX];
 unsigned char raindropy[RAINDROPMAX];
@@ -201,7 +179,7 @@ void unshoot();
 void display_floor();
 void display_ceiling();
 
-char credits_text[]="             RAIN PANIC                "
+char credits_text[]="             RAIN PANIC  (2020)                "
 					"           INSTRUCTIONS :  DURING A STRONG THUNDERSTORM HELP MR ALDO TO CATCH ALL THE DROPS OF WATER FALLING FROM HIS HOUSE CEILING "
 					"           BE CARREFULL OF ROOF TILE FALLING         "
 					"    USE LEFT AND RIGHT ARROWS TO MOVE ALDO (OR O,P)"
@@ -571,8 +549,9 @@ void player_falling()
 	   
    for (i=0;i<5;i++)
    {
-         //manage_cat();
+       
        disp_aldo(px,py+i);
+	   //manage_cat();
 	   //plot(px,py-1+i,32);
 	   //plot(px+1,py-1+i,32);
 	   //plot(px-1,py-1+i,32);
@@ -642,6 +621,7 @@ void manage_falling_obj()
 			    being_falling=0;
 				life--;
 			}	
+			display_floor();
 		   
 		}		
 	}
@@ -1044,6 +1024,7 @@ void manage_cat()
 		   shoot_cat_time=3; // keepn 3 cycle time tp show cyan color paper indicate correct catching
 		   colcattime=27;
 		   unshoot();
+		   display_floor();
 		}
 		if (colcattime>0)
 		colcattime--;
@@ -1148,7 +1129,7 @@ void manage_fireball()
 		    	//*(unsigned char*)(0Xbb80+(firebally*40)+fireballx+2)=126|128;
 			}
 		 }
-        // handle fireball collision with Aldo
+        // handler fireball collision with Aldo
 	    if (((fireballx==px)||(fireballx+1==px))&&(benddown==0)&&(colfireballtime==0))
 		{
 		   
@@ -1172,6 +1153,7 @@ void manage_fireball()
 		   life--;
 		   colfireballtime=27;
 		   unshoot();
+		   display_floor();
 		}
 		if (colfireballtime>0)
 			colfireballtime--;
@@ -1900,7 +1882,7 @@ void main_game_loop()
 		manage_cat(); 
 		manage_fireball(); 
 		manage_rain();
-		display_right_wall();
+		display_right_wall(); // May be better ...
 		display_left_wall();
 		// display Aldo
 				
@@ -1985,7 +1967,10 @@ void main_game_loop()
 		//    wined(); // test la fin
 		//	break;
 		//	}
-
+		
+		//
+		//  Manage Keyboard durin playing
+		//
 
 		if (game_timer>1)
 		   k=key();
@@ -2019,7 +2004,7 @@ void main_game_loop()
 		   wait=0;
 		}
 		if (standuptime>0)
-		standuptime--;
+			standuptime--;
 		//gotoxy(2,25);printf("lastk=%d",lastk);
 		// <space> key pressed
 		if (jump_time==0)
@@ -2037,6 +2022,8 @@ void main_game_loop()
 					wait=0; // cancel the pause
 					// have to clear key buffer
 					//poke(0x24E,10);
+					// redraw floor 
+					display_floor();
 				}
 				else		// else jump
 				{
@@ -2060,7 +2047,7 @@ void main_game_loop()
 			benddown=1;
 			legsup=1;
 			// faire uniqement benddown_time=1 au lieu de zero c'est tout
-			// pour que Aldo reste au sol tant qu'il ne faut pas de jump ou fleche du haut
+			// pour que Aldo reste au sol tant qu'il ne fait pas de jump ou fleche du haut
 			
 			// clear head zone
 			gotoxy(px-1,py);printf("   ");
@@ -2115,11 +2102,13 @@ void main_game_loop()
 		//    goto fin;
 			endgame=1;
 		}
+		#ifdef DEBUG
 		if (k==76) //'l' throw a lightning
 		{
 			tile_x=22;
 			lightning=1;
 		}
+		#endif
 		if (k==83&&lastk!=83) // touche 'S'
 		{			    
 			if (active_sound==1)
@@ -2343,7 +2332,11 @@ void init_default_var()
     shoot_tile_time=0;
 	game_timer=0;
 
-	life=4;                    // nombre de life du personnage normal : 3
+    #ifdef DEBUG
+	life=10;                    // nombre de life du personnage normal : 3
+	#else
+	life=4;
+	#endif
     tile_fall=0;  				// tuile non active par défaut
 	tile_x=0;					// x tile position
 	tile_y=0;					// y tile position
@@ -2363,7 +2356,7 @@ void init_default_var()
 	active_sound=1;
 	active_music=1;
 	rdindex=0;					// index initialize
-	display_wave_level_timer=0; // used to display the wave level
+	display_wave_level_timer=30; // number of game loop cycle to keep on screen the wave level
 	being_falling=0;
 	altchar=1;					// used to alternate between 2 drop character
 	drop_sliding=0;
