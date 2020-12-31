@@ -1,6 +1,6 @@
 //
 //  RAIN PANIC   alpha version
-//  GOYO 2019 (C) *****/
+//  GOYO 2019 (C) ***** git/
 //
 //  HIMEM on peut descendre à #600 (basic à #400)
 //  HI user ram  #9800
