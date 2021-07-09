@@ -1911,7 +1911,7 @@ void main_game_loop()
 
 	do
 	{
-#if def DEBUG
+#ifdef DEBUG
 		timer1 = deek(0x276);
 #endif
 
