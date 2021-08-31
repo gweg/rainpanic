@@ -18,7 +18,7 @@
 //
 // - implémenter le circle du soleil en asm si possible.
 //
-// - révision du 1/5/2020
+// - révision du 31/08/2021
 //
 //		affichage du sol après chaque collision avec Aldo afin d'éffacer les traces de ses pieds.
 //
