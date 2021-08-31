@@ -121,7 +121,7 @@ unsigned char legsup;  			 //   legs set up
 char          waterlevel;		 // level of water
 int           score;		     // game score
 int           music_index;       // music in for music array indexing
-int           wait_to_music;     // wait time to continue to playing music
+unsigned char wait_to_music;     // wait time to continue to playing music
 unsigned int  wait, wait2;	     // global variable to manage wait time
 char          active_sound;      // activated sound state
 char          active_music;      // activated music state
@@ -147,6 +147,8 @@ char unsigned firebally;         // y fireball position
 char unsigned fireball;          // pour savoir si le fireball est prensent ou pas
 char unsigned dirfireball;       // direction du fireball
 char unsigned fireballwait;      // delai du fireball qui reste sur place avant de partir
+
+
 
 char unsigned seefireball;
 char unsigned colfireballtime;   // duration of collision of Aldo with fireball enabled
@@ -363,6 +365,15 @@ void redefine_charExt()
 	for (i = 46352; i < 46352 + sizeof(redefcharExt) - 1; i++)
 		*(unsigned char*)i = redefcharExt[j++];
 }
+
+void playSoundEffect(unsigned char * soundsequence,unsigned char waitformusic)
+{	
+	if (active_sound)
+	{
+	   SoundEffect(soundsequence) ;
+	   wait_to_music = waitformusic;
+	}
+};
 
 // game win animation
 void wingame()
@@ -935,11 +946,10 @@ void manage_cat()
 			cat = 1;
 			dircat = 0;
 			catwait = 10;
-			if (active_sound)
-			{
-				SoundEffect(cat_at_door_sound);
-				wait_to_music = 2;
-			}
+			
+			playSoundEffect(cat_at_door_sound,2);
+			
+			
 		}
 		if (seecat == 2)// appear on right
 		{
@@ -948,11 +958,10 @@ void manage_cat()
 			cat = 1;
 			dircat = 1;
 			catwait = 10;
-			if (active_sound)
-			{
-				SoundEffect(cat_at_door_sound);
-				wait_to_music = 2;
-			}
+			
+			playSoundEffect(cat_at_door_sound,2);
+			
+			
 		}
 
 	}
@@ -1037,11 +1046,9 @@ void manage_cat()
 		if (((catx == px) || (catx + 1 == px)) && (jump_time < 3) && (colcattime == 0))
 		{
 
-			if (active_sound == 1)
-			{
-				SoundEffect(cat_collision_sound);
-				wait_to_music = 3;
-			}
+			
+			playSoundEffect(cat_collision_sound,3);
+		
 			if (dircat == 1)
 				catx -= 2;
 			if (dircat == 2)
@@ -1174,11 +1181,9 @@ void manage_fireball()
 
 			//  faire plutot un benddown_time et pas benddown
 
-			if (active_sound == 1)
-			{
-				SoundEffect(cat_collision_sound);
-				wait_to_music = 3;
-			}
+			
+			SoundEffect(cat_collision_sound,3);
+				
 			paper(3);
 			ink(7);
 
@@ -1534,11 +1539,10 @@ void manage_rain()
 				//poke(SCRADDR+((raindropy[rdindex]+1)*40)+raindropx[rdindex],32);
 
 				// remplacer advancedprint par poke qui est + rapide pour 1xchar
-				if (active_sound == 1)
-				{
-					SoundEffect(bong_sound);
-					wait_to_music = 2;
-				}
+				
+				playSoundEffect(bong_sound,2);
+					
+				
 			}
 		}
 	} //end for (rdindex=0
@@ -1703,12 +1707,13 @@ void display_outside()
 }
 void display_floor()
 {
+	// display ground
 	char i;
 	for (i = 24; i < 28; i++)
 		AdvancedPrint(2, i, "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
 	//poke(SCRADDR+1+(i*40),5);
 
-// floor
+// floor of the house
 
 	asm("ldy #30;"
 		"lda #127;"
@@ -1717,6 +1722,7 @@ void display_floor()
 		"dey;"
 		"bne suite_floor;"
 	);
+	
 	//poke(SCRADDR+3+(7*40),1);
 	//poke(SCRADDR+3+(8*40),2);			
 }
@@ -2038,8 +2044,10 @@ void main_game_loop()
 			jump_time--;
 			if (jump_time == 1) // player Fallout
 			{
-				if (active_sound)
-					SoundEffect(player_fallout_sound);
+				
+				playSoundEffect(player_fallout_sound,2);
+
+				display_floor();
 
 				legsup = 0;
 			}
@@ -2076,11 +2084,10 @@ void main_game_loop()
 					{
 						jump_time = jump_max_time;
 						wait = 0;
-						if (active_sound)
-						{
-							SoundEffect(player_jump_sound);
-							wait_to_music = 2;
-						}
+						
+						playSoundEffect(player_jump_sound,2);
+							
+						
 						legsup = 1;
 					}
 				}
@@ -2101,14 +2108,14 @@ void main_game_loop()
 		//if (benddown_time>0)
 		//	benddown_time--;	
 #ifdef DEBUG
-		if (benddown == 1)
-		{
+		if (benddown == 1) 
+ 		
 			gotoxy(25, 0); printf("STOOP");
-		}
+		
 		else
-		{
+		
 			gotoxy(25, 0); printf("     ");
-		}
+		
 #endif
 
 		// RIGHT key pressed   'P' or <right arrow>
@@ -2162,12 +2169,14 @@ void main_game_loop()
 			{
 				active_sound = 0;
 				gotoxy(15, 0); printf("SOUND OFF");
-				SoundEffect(silence_sound);
+				ping();
+				playSoundEffect(silence_sound,0);
 			}
 			else
 			{
 				active_sound = 1;
 				gotoxy(15, 0); printf("SOUND ON");
+				ping();
 			}
 			for (i = 0; i < 15000; i++);
 			gotoxy(15, 0); printf("         ");
@@ -2177,8 +2186,9 @@ void main_game_loop()
 			if (active_music == 1)
 			{
 				active_music = 0;
-				gotoxy(15, 0); printf("MUSIC OFF");
-				SoundEffect(silence_sound);
+				gotoxy(15, 0); printf("MUSIC OFF");							
+				playSoundEffect(silence_sound,0);
+				ping();
 			}
 			else
 			{
@@ -2186,6 +2196,7 @@ void main_game_loop()
 				active_music = 1;
 				gotoxy(15, 0); printf("MUSIC ON");
 				wait_to_music = 0;
+				ping();
 			}
 			for (i = 0; i < 15000; i++);
 			gotoxy(15, 0); printf("         ");
@@ -2197,7 +2208,7 @@ void main_game_loop()
 		{
 			endgame = 2;
 			armsdown = 1;
-			SoundEffect(silence_sound);
+			playSoundEffect(silence_sound,0);
 			wingame();
 			k = 0;
 			return;
@@ -2205,7 +2216,7 @@ void main_game_loop()
 #endif
 		if (k == 127)  // <back space> game pause
 		{
-			SoundEffect(silence_sound);
+			playSoundEffect(silence_sound,0);
 			sprintf(SCRADDR + (40 * 14) + 18, "PAUSE");
 			do
 			{
@@ -2275,7 +2286,7 @@ void main_game_loop()
 #endif
 		if (endgame == 2)  // win the game
 		{
-			SoundEffect(silence_sound);
+			playSoundEffect(silence_sound,0);
 			wait_to_music = 7;
 			armsdown = 1;
 			wingame();
@@ -2313,10 +2324,10 @@ void main_game_loop()
 		// wave display
 		if (display_wave_level_timer > 0)
 		{
-			sprintf(SCRADDR + (40 * 14) + 16, "WAVE %d", wave_nbr);
+			sprintf(SCRADDR + (40 * 14) + 17, "WAVE %d", wave_nbr);
 			if (display_wave_level_timer == 1)
 			{
-				sprintf(SCRADDR + (40 * 14) + 16, "       ");
+				sprintf(SCRADDR + (40 * 14) + 17, "       ");
 			}
 			display_wave_level_timer--;
 		}
@@ -2330,7 +2341,7 @@ void main_game_loop()
 		sprintf(SCRADDR + 10, "DELAY:%d  ", (timer1 - timer2));
 #endif
 	} while (endgame == 0);
-	SoundEffect(silence_sound);
+	playSoundEffect(silence_sound,0);
 	poke(0x24E, 10);
 }
 
@@ -2591,7 +2602,7 @@ void main()
 		if (kmenu == 32)
 		{
 
-			SoundEffect(silence_sound);
+			playSoundEffect(silence_sound,0);
 			init_default_var();
 			cls();
 			gotoxy(0, 0); printf("                                        ");
