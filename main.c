@@ -1917,8 +1917,8 @@ void main_game_loop()
 
 	do
 	{
-#if def DEBUG
-		timer1 = deek(0x276);
+#ifdef DEBUG
+	timer1 = deek(0x276);
 #endif
 
 #ifdef SLOW_DOWN_DURATION 
