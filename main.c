@@ -1,6 +1,8 @@
 //
-//  RAIN PANIC   v1.0 2021
+//  RAIN PANIC   v1.0 2020-2024
 //  Author : GOYO 
+//  Music : Ladywasky
+//  Testing & some level design : DmaCoco
 //
 //  utilisation ram : on peut descendre à #600 environ (la zone basic démarrant à #400)
 //  HI user ram  #9800
@@ -9,17 +11,10 @@
 // ------------------------------
 //
 // - les différents niveaux -> toutes les vagues de pluie.
-//
-// - gestion de l'activation/desactivation du son et de la musique
-// 
 // - jambes qui marchent durant le déplacement continue
-//
 // - collision avec ice : faire tomber Aldo au sol
-//
 // - implémenter le circle du soleil en asm si possible.
-//
 // - révision du 31/08/2021
-//
 //		affichage du sol après chaque collision avec Aldo afin d'éffacer les traces de ses pieds.
 //
 // BUGS :
@@ -29,23 +24,6 @@
 //
 //  - legs traces
 //
-/*
-  Oric Standar Charset
-   =32 !=33 "=34 #=35 $=36 %=37 &=38 '=3
-  9 (=40 )=41 *=42 +=43 ,=44 -=45 .=46 /
-  =47 0=48 1=49 2=50 3=51 4=52 5=53 6=54
-   7=55 8=56 9=57 :=58 ;=59 <=60 ==61 >=
-  62 ?=63 @=64 A=65 B=66 C=67 D=68 E=69
-  F=70 G=71 H=72 I=73 J=74 K=75 L=76 M=7
-  7 N=78 O=79 P=80 Q=81 R=82 S=83 T=84 U
-  =85 V=86 W=87 X=88 Y=89 Z=90 [=91 \=92
-   ]=93 ^=94 _=95 `=96 a=97 b=98 c=99 d=
-  100 e=101 f=102 g=103 h=104 i=105 j=10
-  6 k=107 l=108 m=109 n=110 o=111 p=112
-  q=113 r=114 s=115 t=116 u=117 v=118 w=
-  119 x=120 y=121 z=122 {=123 |=124 }=12
-  5 ~=126 =127
-  */
   /* screen coding
 
 		   DELAY:248           WAT=0L=0
@@ -80,8 +58,6 @@
 
 #include <lib.h>
 
-
-
 #define RAINDROPMAX 20       // max drop sprite in the screen
 #define jump_max_time 8      // time to keep in jump state
 #define benddown_max_time 8     // time to Aldo benddown
@@ -93,7 +69,8 @@
   // arrays to manage rain drops, for : x y timer state alstate
 #define floor_y 25
 
-#undef DEBUG              // to switch to debug mode !!! : define/undef
+#undef DEBUG
+// #define DEBUG              // to switch to debug mode !!! : define/undef
 
 unsigned char raindropx[RAINDROPMAX];
 unsigned char raindropy[RAINDROPMAX];
@@ -120,6 +97,7 @@ unsigned char armsdown;  		 // arms set down
 unsigned char legsup;  			 //   legs set up
 char          waterlevel;		 // level of water
 int           score;		     // game score
+int 		  hscore;
 int           music_index;       // music in for music array indexing
 unsigned char wait_to_music;     // wait time to continue to playing music
 unsigned int  wait, wait2;	     // global variable to manage wait time
@@ -214,135 +192,27 @@ void unshoot();
 void display_floor();
 void display_ceiling();
 
-char credits_text[] = "             RAIN PANIC  (2020)                "
+
+char credits_text[] = "             RAIN PANIC  (2024)                "
 "           INSTRUCTIONS :  DURING A STRONG THUNDERSTORM HELP MR ALDO TO CATCH ALL THE DROPS OF WATER FALLING FROM HIS HOUSE CEILING "
 "           BE CARREFULL OF ROOF TILE FALLING         "
 "    USE LEFT AND RIGHT ARROWS TO MOVE ALDO (OR O,P)"
 "    USE SPACE TO JUMP        ESC TO EXIT   "
 "                                                    "
 "  CODING BY GOYO IN C LANGUAGE WITH ORIC OSDK AND FEW INLINE ASSAMBLY CODE              ORIGINAL MUSIC : LADYWASKY      "
+"  TESTING AND SOME LEVEL DESIGN : DMACOCO              V1.00 24/03/2024            "
 "  THANKS TO THE HELP OF MANY MEMBERS OF COE FORUM : DBUG  RETORIC JIBE"
-"  LADYWASKY  DRPSY  KENNETH  ISS AND OTHERS ORICIANS ..           "
+"  LADYWASKY  DRPSY  KENNETH  ISS DMACOCOAND OTHERS ORICIANS ..           "
 "  HAVE FUN .....                     ";
 
-// Music : Rainy Day(c) , by LADYWASKY
-char game_music[] = {
-1,7,12,4,0,0,0,0, 1,7,12,4,0,0,0,0, 1,7,11,4,0,0,0,0, 1,7,11,4,0,0,0,0, 1,7,9,4,0,0,0,0, 3,3,9,4,8,2,0,0,
-//Intro,A2,,,,,,,
-6,7,0,0,8,3,4,4,  3,3,9,4,8,2,0,0, 7,7,11,4,8,3,4,4, 2,3,0,0,7,2,0,0, 7,7,11,4,7,3,2,4, 2,3,0,0,7,2,0,0,
-7,7,11,4,7,3,2,4, 2,3,0,0,5,2,0,0, 7,7,12,4,5,3,12,4,2,3,0,0,5,2,0,0, 7,7,12,4,5,3,12,4,3,3,12,4,5,2,0,0,
-7,7,11,4,5,3,12,4,3,3,11,4,5,2,0,0,7,7,9,4,5,3,12,4, 3,3,9,4,8,2,0,0, 6,7,0,0,8,3,4,4,  3,3,12,4,8,2,0,0,
-7,7,2,5,8,3,4,4,  2,3,0,0,7,2,0,0, 7,7,12,4,7,3,2,4, 3,3,11,4,7,2,0,0,7,7,9,4,7,3,2,4,  2,3,0,0,5,2,0,0,
-6,7,0,0,5,3,12,4, 2,3,0,0,5,2,0,0, 7,7,12,4,5,3,12,4,1,7,12,4,0,0,0,0,3,3,12,4,5,2,0,0, 7,7,11,4,5,3,12,4,
-3,3,11,4,5,2,0,0, 6,7,9,4,5,3,12,4,2,3,9,4,8,2,0,0,  6,7,0,0,8,3,4,4, 3,3,12,4,8,2,0,0, 6,7,0,0,8,3,4,4,
-3,3,7,4,7,2,0,0,  6,7,0,0,7,3,2,4, 2,3,0,0,7,2,0,0, 7,7,12,4,7,3,2,4, 3,3,11,4,5,2,0,0, 7,7,9,4,5,3,12,4,
-3,3,11,4,5,2,0,0,7,7,12,4,5,3,12,4,2,3,0,0,5,2,0,0, 6,7,0,0,5,3,12,4, 2,3,0,0,5,2,0,0,  6,7,0,0,5,3,12,4,
-3,3,12,4,8,2,0,0,
-//Boucle,A3,,,,,,,
-6,7,0,0,8,3,4,4,  3,3,7,4,8,2,0,0, 7,7,7,4,8,3,4,4,  2,3,0,0,7,2,0,0, 7,7,4,4,7,3,2,4,  3,3,7,4,7,2,0,0,
-7,7,7,4,7,3,2,4,  2,3,0,0,5,2,0,0, 6,7,0,0,5,3,12,4, 2,3,0,0,5,2,0,0, 7,7,12,4,5,3,12,4,3,3,12,4,5,2,0,0,
-7,7,11,4,5,3,12,4,3,3,11,4,5,2,0,0,7,7,9,4,5,3,12,4, 3,3,9,4,8,2,0,0,
-//Boucle,A2,,,,,,,
-6,7,0,0,8,3,4,4,  3,3,9,4,8,2,0,0, 7,7,11,4,8,3,4,4, 2,3,0,0,7,2,0,0, 7,7,11,4,7,3,2,4, 2,3,0,0,7,2,0,0,
-7,7,11,4,7,3,2,4, 2,3,0,0,5,2,0,0, 7,7,12,4,5,3,12,4,2,3,0,0,5,2,0,0, 7,7,12,4,5,3,12,4,3,3,12,4,5,2,0,0,
-7,7,11,4,5,3,12,4,3,3,11,4,5,2,0,0,7,7,9,4,5,3,12,4, 3,3,9,4,8,2,0,0, 6,7,0,0,8,3,4,4,  3,3,12,4,8,2,0,0,
-7,7,2,5,8,3,4,4,  2,3,0,0,7,2,0,0, 7,7,12,4,7,3,2,4, 3,3,11,4,7,2,0,0,7,7,9,4,7,3,2,4,  2,3,0,0,5,2,0,0,
-6,7,0,0,5,3,12,4, 2,3,0,0,5,2,0,0, 7,7,12,4,5,3,12,4,1,7,12,4,0,0,0,0,3,3,12,4,5,2,0,0, 7,7,11,4,5,3,12,4,
-3,3,11,4,5,2,0,0, 6,7,9,4,5,3,12,4,2,3,9,4,8,2,0,0,  6,7,0,0,8,3,4,4, 3,3,12,4,8,2,0,0, 6,7,0,0,8,3,4,4,
-3,3,7,4,7,2,0,0,  6,7,0,0,7,3,2,4, 2,3,0,0,7,2,0,0,  7,7,12,4,7,3,2,4,3,3,11,4,5,2,0,0, 7,7,9,4,5,3,12,4,
-3,3,11,4,5,2,0,0, 7,7,12,4,5,3,12,4,2,3,0,0,5,2,0,0, 6,7,0,0,5,3,12,4,2,3,0,0,5,2,0,0, 6,7,0,0,5,3,12,4,
-//Fin,A4,,,,,,,
-3,3,2,5,8,2,0,0,  6,7,0,0,8,3,4,4, 3,3,7,4,8,2,0,0,  7,7,7,4,8,3,4,4, 2,3,0,0,7,2,0,0,  7,7,4,4,7,3,2,4,
-3,3,7,4,7,2,0,0,  7,7,7,4,7,3,2,4, 3,3,5,4,5,2,0,0,  6,7,0,0,5,3,12,4,3,3,4,5,5,2,0,0,  6,7,0,0,5,3,12,4,
-3,3,2,5,5,2,0,0,  1,7,9,4,0,0,0,0, 2,7,0,0,5,2,0,0,  2,7,0,0,5,2,0,0, 2,7,0,0,5,2,0,0 };
-
-
-//
-//   WAVES OF RAINDROP DATA 
-//
-// RAIN[] -> raindrop array [XPOS(drop), DELAY(between 2 drop),,,,]
-//
-// rain code signification :
-//
-// 0-40 = rain drop horizontal position. Must be bewteen 6 and 32 x position (7 left---19 center -- right 31) with step of 2 )
-// possible values of x : 7 9  11  13  15  17  19  21  23  25  27  29  31  
-//                         8 10  12  14  16  18  20  22  24  26  28  30  32
-// 255 = next wave
-// 250 = cat appear on the left (cardir)
-// 251 = cat appear on the right
-// 252 = fireball appear on the left
-// 253 = fireball appear on the right
-// 200-226 = lightning appear and use this code to define x position of lighting (Xpox = code-200 + 7)
-// 180-196 = Life fall 
-// 150-176 = ice fall
-
-//WAVES DATA on a external file.
-#include "waves.c"
 
 #define SLOW_DOWN_DURATION 100
 
-// redefined 35 characters for graphics and sprites game
-unsigned char redefchar[] = {
+//WAVES DATA on a external file, CHARSET and MUSIC
+#include "rpanic_waves.c"
+#include "rpanic_charset.c"
+#include "rpanic_music.c"
 
-01,01,01,01,02,03,06,06, // 91
-63,63,63,63,63,30,00,30, // 92
-32,32,32,32,16,48,24,24, // 93
-06,06,06,06,07,03,01,00, // 94
-63,45,63,51,30,45,63,63, // 95
-24,24,24,24,56,48,32,00, // 96
-30,63,45,63,51,45,63,30, // 97  // ungry head   - ancien blanc coté gauche du ventre, peut etre recyclé
-63,63,63,00,63,63,63,51, // 98
-00,30,47,63,63,63,30,00, // 99 - ice boulder
-00,00,00,00,00,00,01,01, // 100
-51,51,51,00,30,30,63,63, // 101
-00,00,00,00,00,00,32,32, // 102
-01,01,01,00,01,01,07,07, // 103
-51,51,51,00,33,33,33,33, // 104
-32,32,32,00,32,32,56,56, // 105
-63,63,63,51,30,45,63,63, // 106
-0x08,0x08,28,28,62,62,46,28,  // 107   goutte à rattraper 1/2   - bug with 8 value ? must be hex 0x08
-00,00,00,00,00,00,00,00, // 108  goutte à rattraper 2/2
-00,00,04,04,14,14,10,04, // 109
-00,00,00,00,00,00,00,00, // 110
-30,63,45,63,63,45,51,30, // 111 head of life number
-04,28,31,15,03,03,02,06, // 112 right cat  // bug a cette position dans la memoire verifier si addresse utilsiée ailleurs
-01,01,62,60,60,12,38,42, // 113 right cat
-16,16,15,07,07,06,12,10, // 114 left cat
-04,07,63,62,56,24,40,44, // 115 left cat
-00,00,00,00,06,06,07,07, // 116
-00,00,00,00,00,03,47,47, // 117
-00,00,00,00,00,48,61,61, // 118
-00,00,00,00,24,24,56,56, // 119
-04,35,0x9,07,07,0x9,35,04, // 120  fire boulder left 04,34,0x09,07,07,0x09,34,04
-0x08,17,36,56,56,36,17,0x08, // 121  fire boulder right
-62,62,62,62,62,62,62,28, // 122 tile
-03,06,12,31,00,00,00,01, // 123 lightning left
-00,00,00,60,12,24,48,32, // 124 lightning right
-03,02,04,0x08,16,32,00,00// 125 lightning head character redefine
-// 126, 127 allready used in them native graphics
-};
-unsigned char catfish[] = {
-00,48,11,05,31,39,11,16, // 112 left catfish
-16,49,59,63,62,63,59,33, // 113 left catfish (queue)
-02,35,55,63,31,63,55,33, // 114 right fish
-00,03,52,40,62,57,52,02  // 115 right fish
-};
-unsigned char catcat[] = {
-04,28,31,15,03,03,02,06, // 112 right cat  
-01,01,62,60,60,12,38,42, // 113 right cat
-16,16,15,07,07,06,12,10, // 114 left cat
-04,07,63,62,56,24,40,44 // 115 left cat}
-};
-unsigned char redefcharExt[] = {
-
-	// happy aldo: player les bras en bas 
-	00,00,00,00,00,00,00,30, // 34 à haut de la tête
-	00,00,00,00,00,00,00,01, // 35 à gauche de la tête
-	00,00,00,00,00,00,00,32, // 36 à droite de la tête
-	03,03,06,06,06,00,06,06, // 37 à gauche du corps
-	48,48,24,24,24,00,24,24, // 38 à droite du corps
-	22,61,63,63,30,30,12,00 // 39 kernel
-};
 // redefine characters
 void redefine_char()
 {
@@ -373,7 +243,7 @@ void playSoundEffect(unsigned char * soundsequence,unsigned char waitformusic)
 	   SoundEffect(soundsequence) ;
 	   wait_to_music = waitformusic;
 	}
-};
+}
 
 // game win animation
 void wingame()
@@ -669,7 +539,9 @@ void manage_falling_obj()
 				being_falling = 1;
 				player_falling();
 				being_falling = 0;
-				life--;
+				#ifndef DEBUG
+					life--;
+				#endif
 			}
 			display_floor();
 
@@ -768,7 +640,9 @@ void manage_lightning()
 			// clear head zone
 			gotoxy(px - 1, py); printf("   ");
 
-			life--;
+			#ifndef DEBUG
+				life--;
+			#endif
 		}
 		if (tile_y < floor_y - 3)
 		{
@@ -921,7 +795,7 @@ void house_shaking()
 void manage_cat()
 {
 #ifdef DEBUG
-	gotoxy(30, 0); printf("WA LVL=%d", waterlevel);
+	gotoxy(30, 0); printf("WAT=%d", waterlevel);
 #endif
 
 	if (cat == 0)
@@ -1064,8 +938,10 @@ void manage_cat()
 			gotoxy(px - 1, py); printf("   ");
 
 			armsdown = 0;
-			being_falling = 0,
-				life--;
+			being_falling = 0;
+				#ifndef DEBUG
+					life--;
+				#endif
 			colcat = 1; //enable cat collision
 			shoot_cat_time = 3; // keepn 3 cycle time tp show cyan color paper indicate correct catching
 			colcattime = 27;
@@ -1194,7 +1070,9 @@ void manage_fireball()
 			armsdown = 0;
 			shoot_fireball_time = 4;
 
-			life--;
+			#ifndef DEBUG
+				life--;
+			#endif
 			colfireballtime = 27;
 			unshoot();
 			display_floor();
@@ -1670,8 +1548,10 @@ void manage_rain()
 						drop_floor_time = 3;
 						paper(5);
 						ink(3);
+						#ifndef DEBUG
 						if (waterlevel < 4)
 							waterlevel++;
+						#endif;
 					}
 
 					raindropy[rdindex]++;
@@ -1903,6 +1783,7 @@ void display_house()
 	display_ceiling();
 }
 
+
 #
 #
 #  MAIN GAME LOOP
@@ -1918,7 +1799,7 @@ void main_game_loop()
 	do
 	{
 #ifdef DEBUG
-	timer1 = deek(0x276);
+		timer1 = deek(0x276);
 #endif
 
 #ifdef SLOW_DOWN_DURATION 
@@ -2109,13 +1990,13 @@ void main_game_loop()
 		//	benddown_time--;	
 #ifdef DEBUG
 		if (benddown == 1) 
- 		
+		{
 			gotoxy(25, 0); printf("STOOP");
-		
+		}
 		else
-		
+		{
 			gotoxy(25, 0); printf("     ");
-		
+		}
 #endif
 
 		// RIGHT key pressed   'P' or <right arrow>
@@ -2181,7 +2062,7 @@ void main_game_loop()
 			for (i = 0; i < 15000; i++);
 			gotoxy(15, 0); printf("         ");
 		}
-		if (k == 59 && lastk != 59) // touche 'M'
+		if (k == 77 && lastk != 77) // touche 'M'
 		{
 			if (active_music == 1)
 			{
@@ -2324,10 +2205,10 @@ void main_game_loop()
 		// wave display
 		if (display_wave_level_timer > 0)
 		{
-			sprintf(SCRADDR + (40 * 14) + 17, "WAVE %d", wave_nbr);
+			sprintf(SCRADDR + (40 * 17 + 17), "WAVE %d", wave_nbr);
 			if (display_wave_level_timer == 1)
 			{
-				sprintf(SCRADDR + (40 * 14) + 17, "       ");
+				sprintf(SCRADDR + (40 * 17 + 17), "       ");
 			}
 			display_wave_level_timer--;
 		}
@@ -2388,11 +2269,6 @@ void init_default_var()
 	shoot_tile_time = 0;
 	game_timer = 0;
 
-#ifdef DEBUG
-	life = 10;                    // nombre de life du personnage normal : 3
-#else
-	life = 4;
-#endif
 	tile_fall = 0;  				// tuile non active par défaut
 	tile_x = 0;					// x tile position
 	tile_y = 0;					// y tile position
@@ -2407,10 +2283,6 @@ void init_default_var()
 
 	music_index = 0;
 	wait_to_music = wait_to_music_delay;
-	volume = 7;
-
-	active_sound = 1;
-	active_music = 1;
 	rdindex = 0;					// index initialize
 	display_wave_level_timer = 30; // number of game loop cycle to keep on screen the wave level
 	being_falling = 0;
@@ -2421,6 +2293,11 @@ void init_default_var()
 
 	wave_nbr = 0;				    // numéro de vague de gouttes en cours . vague de goutte=niveau
 
+#ifdef DEBUG
+	life = 10;                    // nombre de life du personnage normal : 3
+#else
+	life = 4;
+#endif
 	// redef drop
 	redefine_raindrop();
 
@@ -2468,6 +2345,29 @@ display_menu()
 	}
 
 	// screen of menu page
+	display_menutitle();
+	// text color   // 12 = blink
+
+	color_inverse_menu();
+
+	poke(SCRADDR + (25 * 40) + 9, 12);
+	poke(SCRADDR + (25 * 40) + 31, 8);
+
+
+	// to debbug
+	// gotoxy(20,0);printf("CODE=%d IDX=%d",rain[index_raindrop],index_raindrop);
+}
+
+void init_full_var()	// 1ere initialisation du jeu
+{
+	volume = 7;
+	active_sound = 1;
+	active_music = 1;
+	init_default_var();
+}
+
+display_menutitle()
+{
 	AdvancedPrint(2, 2, "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm");
 	AdvancedPrint(2, 3, "mmmmmmm     mmmm    mmm mm mmmm mmmmmm");
 	AdvancedPrint(2, 4, "mmmmmm! !!!! mm !!!! m!mm!  mm! mmmmmm");
@@ -2487,17 +2387,39 @@ display_menu()
 	AdvancedPrint(6, 21, "\23\4DIRECTION : ARROWS KEY < > \4\26");
 	AdvancedPrint(13, 23, "\23\4SPACE TO JUMP\4\26");
 	AdvancedPrint(10, 25, "\23\4PRESS SPACE TO PLAY\4\26");
-	// text color   // 12 = blink
-
-	color_inverse_menu();
-
-	poke(SCRADDR + (25 * 40) + 9, 12);
-	poke(SCRADDR + (25 * 40) + 31, 8);
-
-
-	// to debbug
-	// gotoxy(20,0);printf("CODE=%d IDX=%d",rain[index_raindrop],index_raindrop);
 }
+
+display_hscore()
+{
+	unsigned char smenu = 00;
+	AdvancedPrint(2, 2, "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm");
+	AdvancedPrint(2, 3, "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm");
+	AdvancedPrint(2, 4, "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm");
+	AdvancedPrint(2, 5, "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm");
+	AdvancedPrint(2, 6, "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm");
+	AdvancedPrint(2, 7, "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm");
+	AdvancedPrint(2, 8, "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm");
+	AdvancedPrint(2, 9, "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm");
+	AdvancedPrint(2, 10, "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm");
+	AdvancedPrint(2, 11, "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm");
+	AdvancedPrint(2, 12, "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm");
+	AdvancedPrint(2, 13, "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm");
+	AdvancedPrint(2, 14, "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm");
+	AdvancedPrint(2, 15, "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm");
+	AdvancedPrint(2, 16, "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm");
+	AdvancedPrint(2, 17, "mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm");
+		do
+	{
+		smenu = key();
+	} while (smenu==32);
+	smenu=0;
+	do
+	{
+		smenu = key();
+	} while (smenu!=0);
+	
+	}
+
 void main()
 {
 	unsigned char kmenu = 00;
@@ -2505,20 +2427,21 @@ void main()
 	int timer, raintimer;
 	redefine_char();
 	redefine_charExt();
+	hscore=0;
 	volume = 7; // set volume to middle
 
-	init_default_var();
+	init_full_var();
 	// cursor hide ?
 	*(unsigned char*)0x26A = 10;
 
 	cls();
-
 	display_outside();
 
 	//display_house();
 	//display_floor();
-	display_menu();
 
+	display_menu();
+	
 	game_timer = 0;
 	//SoundEffect(rain_menu_sound,volume);
 
@@ -2544,7 +2467,6 @@ void main()
 		// SIMPLE TEXT SCROLLING
 		if (scroll_text_time == 192)
 		{
-
 			asm(
 				"lda #40;"
 				"sta $FFFF;"  // to debug
@@ -2597,6 +2519,12 @@ void main()
 			//	SoundEffect(rain_menu_sound,sound_volume);
 		}
 
+		if (kmenu==72) 	// if 'H' pour High scores
+		{
+			display_hscore();
+			display_menutitle();
+		}
+
 
 		// if press space key to start game
 		if (kmenu == 32)
@@ -2647,5 +2575,3 @@ void main()
 	printf("PLEASE RESET YOUR ORIC");
 	return;
 }
-
-
